@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#7F4B3B">
+    <meta name="description" content="AcornOps governance-only platform administration console">
+    <title>Admin · AcornOps</title>
+    <link rel="icon" href="/admin-brandmark.svg" type="image/svg+xml">
+    <script src="/theme-init.js"></script>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body data-console="platform-admin">
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+        <div class="brand">
+          <img src="/admin-brandmark.svg" alt="" width="35" height="41">
+          <span class="brand-copy">
+            <span class="wordmark"><strong>acorn</strong><b>ops</b></span>
+            <span class="console-identity">Platform Admin</span>
+          </span>
+        </div>
+        <nav class="nav-list">
+          <a href="/" data-route="overview"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg><span>Overview</span></a>
+          <a href="/workspaces" data-route="workspaces"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg><span>Workspaces</span></a>
+          <a href="/users" data-route="users"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Users</span></a>
+          <a href="/audit" data-route="audit"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/><path d="m9 12 2 2 4-4"/></svg><span>Admin Audit</span></a>
+        </nav>
+        <div class="admin-account-bar" aria-label="Signed-in administrator identity">
+          <button class="admin-account-trigger" id="admin-account-trigger" type="button" aria-label="Open account menu" aria-controls="admin-account-menu" aria-expanded="false">
+            <span class="admin-profile">
+              <span class="avatar" data-admin-avatar>PA</span>
+              <span><strong id="admin-name">Platform admin</strong><small id="admin-role">Loading identity…</small></span>
+            </span>
+            <span class="admin-account-chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+          </button>
+          <div class="admin-account-menu" id="admin-account-menu" aria-label="Account" hidden>
+            <div class="admin-account-summary">
+              <span class="avatar account-menu-avatar" data-admin-avatar>PA</span>
+              <span><strong id="admin-menu-name">Platform admin</strong><small id="admin-menu-email">Loading identity…</small></span>
+            </div>
+            <div class="admin-account-section">
+              <div class="theme-control">
+                <button class="account-menu-item theme-menu-trigger" id="theme-menu-trigger" type="button" aria-label="Open theme menu" aria-haspopup="menu" aria-controls="theme-menu" aria-expanded="false">
+                  <span class="account-menu-item-copy"><span class="account-menu-icon" data-theme-icon aria-hidden="true"></span><span><strong>Theme</strong><small id="theme-preference-label">System</small></span></span>
+                  <svg class="account-menu-item-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <div class="theme-menu" id="theme-menu" role="menu" aria-label="Theme" hidden>
+                  <button type="button" role="menuitemradio" data-theme-preference="system" aria-checked="true"><span class="theme-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><span>System</span><span class="theme-check" aria-hidden="true"></span></button>
+                  <button type="button" role="menuitemradio" data-theme-preference="light" aria-checked="false"><span class="theme-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg></span><span>Light</span><span class="theme-check" aria-hidden="true"></span></button>
+                  <button type="button" role="menuitemradio" data-theme-preference="dark" aria-checked="false"><span class="theme-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg></span><span>Dark</span><span class="theme-check" aria-hidden="true"></span></button>
+                </div>
+              </div>
+            </div>
+            <div class="admin-account-section logout-section">
+              <button class="account-menu-item admin-logout" id="admin-logout" type="button"><span class="account-menu-icon logout-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/></svg></span><strong>Logout</strong></button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="workspace-shell">
+        <header class="mobile-header">
+          <button class="icon-button mobile-menu" id="menu-button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">☰</button>
+          <svg class="mobile-context-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>Platform Admin</span>
+        </header>
+        <main id="main" tabindex="-1"></main>
+      </section>
+    </div>
+
+    <div class="user-panel-layer" id="workspace-panel-layer" hidden>
+      <aside class="user-panel workspace-panel" id="workspace-panel" role="dialog" aria-modal="true" aria-labelledby="workspace-panel-title" tabindex="-1">
+        <header class="user-panel-header">
+          <div><h2 id="workspace-panel-title">Workspace Details</h2><p id="workspace-panel-id">Loading workspace…</p></div>
+          <button class="panel-close" id="workspace-panel-close" type="button" aria-label="Close workspace details">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </header>
+        <div class="user-panel-content" id="workspace-panel-content"></div>
+      </aside>
+    </div>
+
+    <div class="user-panel-layer" id="user-panel-layer" hidden>
+      <aside class="user-panel" id="user-panel" role="dialog" aria-modal="true" aria-labelledby="user-panel-title" tabindex="-1">
+        <header class="user-panel-header">
+          <div><h2 id="user-panel-title">User Details</h2><p id="user-panel-email">Loading user…</p></div>
+          <button class="panel-close" id="user-panel-close" type="button" aria-label="Close user details">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </header>
+        <div class="user-panel-content" id="user-panel-content"></div>
+      </aside>
+    </div>
+
+    <div class="scrim" id="scrim" hidden></div>
+    <dialog id="action-dialog" aria-labelledby="dialog-title">
+      <form method="dialog" id="dialog-form">
+        <div class="dialog-heading">
+          <h2 id="dialog-title">Confirm action</h2>
+          <p id="dialog-description"></p>
+        </div>
+        <div id="dialog-fields"></div>
+        <p class="form-error" id="dialog-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button class="button secondary" id="dialog-cancel" type="button">Cancel</button>
+          <button class="button primary" id="dialog-submit" value="default">Confirm</button>
+        </div>
+      </form>
+    </dialog>
+    <div class="toast-viewport">
+      <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true">
+        <div class="toast-body">
+          <span class="toast-status-icon" aria-hidden="true"><svg class="toast-success-mark" viewBox="0 0 24 24"><path d="m7 12 3 3 7-7"/></svg><svg class="toast-danger-mark" viewBox="0 0 24 24"><path d="M12 8v5M12 17h.01"/></svg></span>
+          <p id="toast-message"></p>
+          <button class="toast-close" id="toast-close" type="button" aria-label="Dismiss notification"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"/></svg></button>
+        </div>
+        <span class="toast-progress" aria-hidden="true"></span>
+      </div>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
