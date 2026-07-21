@@ -44,6 +44,23 @@ test("fails readiness closed when the control plane is unavailable", async () =>
   });
 });
 
+test("forwards every control-plane CSRF cookie as a distinct response header", async () => {
+  const fetchImpl = async () => {
+    const headers = new Headers({ "content-type": "application/json" });
+    headers.append("set-cookie", "acornops_cp_csrf=cp-token; Path=/; SameSite=Strict");
+    headers.append("set-cookie", "acornops_admin_csrf=admin-token; Path=/; SameSite=Strict");
+    return new Response(JSON.stringify({ csrfToken: "admin-token" }), { status: 200, headers });
+  };
+  await withServer({ mode: "control-plane", upstreamBaseUrl: "https://control.example", upstreamToken: "secret", fetchImpl }, async (base) => {
+    const response = await fetch(`${base}/admin-console-api/auth/csrf`);
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.headers.getSetCookie(), [
+      "acornops_cp_csrf=cp-token; Path=/; SameSite=Strict",
+      "acornops_admin_csrf=admin-token; Path=/; SameSite=Strict"
+    ]);
+  });
+});
+
 test("serves the application with security headers", async () => {
   await withServer({ mode: "mock" }, async (base) => {
     const response = await fetch(`${base}/workspaces/ws_atlas`);

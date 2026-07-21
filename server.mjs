@@ -166,7 +166,7 @@ async function handleApi(context) {
       return;
     }
     const result = await callAdminUpstream({ path: "/admin-auth/csrf", method: "GET", query: new URLSearchParams(), upstreamBaseUrl, upstreamToken, fetchImpl, browserRequest: request });
-    if (result.setCookie) response.setHeader("set-cookie", result.setCookie);
+    if (result.setCookies?.length) response.setHeader("set-cookie", result.setCookies);
     sendJson(response, result.status, result.payload);
     return;
   }
@@ -246,12 +246,21 @@ async function callAdminUpstream({ path, method, query, body, upstreamBaseUrl, u
     });
     const contentType = upstream.headers.get("content-type") || "";
     const payload = upstream.status === 204 ? null : contentType.includes("application/json") ? await upstream.json() : apiError("INVALID_UPSTREAM_RESPONSE", "The admin control plane returned an invalid response");
-    return { status: upstream.status, payload, setCookie: upstream.headers.get("set-cookie") || undefined };
+    return { status: upstream.status, payload, setCookies: readSetCookies(upstream.headers) };
   } catch (error) {
     return { status: error?.name === "AbortError" ? 504 : 502, payload: { error: { code: error?.name === "AbortError" ? "ADMIN_UPSTREAM_TIMEOUT" : "ADMIN_UPSTREAM_UNAVAILABLE", message: "The admin control plane is unavailable", retryable: true } } };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function readSetCookies(headers) {
+  if (typeof headers.getSetCookie === "function") {
+    const values = headers.getSetCookie();
+    if (values.length) return values;
+  }
+  const value = headers.get("set-cookie");
+  return value ? [value] : [];
 }
 
 async function readJsonBody(request) {
