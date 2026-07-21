@@ -24,7 +24,7 @@ The executable baseline may use current source, durable docs, contracts, and foc
 
 | ID | Requirement |
 | --- | --- |
-| `REQ-BND-001` | The browser calls only same-origin `/admin-console-api/*`; the BFF maps those calls to a fixed `/admin/v1` allowlist and never accepts an arbitrary upstream path. |
+| `REQ-BND-001` | The browser sends governance API calls only to same-origin `/admin-console-api/*`; the BFF maps those calls to a fixed `/admin/v1` allowlist and never accepts an arbitrary upstream path. The dedicated same-origin authentication flow is limited to the declared `/admin-auth/*` routes. |
 | `REQ-BND-002` | Platform admins receive governance metadata only. Tenant logs, audit records, targets, agents, sessions, runs, prompts, tools, credentials, commands, and workload changes remain unavailable. |
 | `REQ-BND-003` | The consumer credential rejects `admin:*` and operational scopes. Responses are privacy-projected and fail closed before reaching the browser. |
 | `REQ-AUTH-001` | Production access uses a dedicated platform-admin OIDC client with PKCE, MFA assurance, a host-only one-hour admin session, CSRF protection, and exactly three roles: `platform-admin`, `platform-admin-viewer`, and `platform-admin-auditor`. The control plane requires both the internal BFF credential and the human admin session. Writes require authentication no older than 15 minutes. Password login and self-signup are absent. |

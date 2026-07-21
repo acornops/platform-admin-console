@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastReviewed": "2026-07-19",
+  "lastReviewed": "2026-07-21",
   "authority": "docs/product-specs/current-requirements.md",
   "expectedRuntime": {
     "adminRouteCount": 15,
@@ -16,9 +16,10 @@
   "required": [
     {
       "id": "REQ-BND-001",
-      "summary": "The browser uses only the same-origin BFF and the BFF maps only explicit /admin/v1 routes.",
+      "summary": "The browser uses only same-origin fixed governance and authentication boundaries, and the BFF maps only explicit /admin/v1 routes.",
       "evidence": [
-        { "file": "ARCHITECTURE.md", "contains": ["same-origin /admin-console-api/*", "Control Plane /admin/v1/*", "no generic proxy"] },
+        { "file": "ARCHITECTURE.md", "contains": ["same-origin /admin-console-api/*", "same-origin /admin-auth/*", "Control Plane /admin/v1/*", "no generic proxy"] },
+        { "file": "server.mjs", "contains": ["ADMIN_AUTH_ROUTE_DEFINITIONS", "redirect: \"manual\"", "ADMIN_AUTH_ROUTE_NOT_ALLOWED"] },
         { "file": "public/app.js", "excludes": ["/admin/v1/"] },
         { "file": "lib/admin-route-policy.mjs", "contains": ["/admin/v1/admin-audit-events", "sanitizedAdminQuery"], "excludes": ["/api/v1/", "/internal/v1/"] }
       ]

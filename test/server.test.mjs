@@ -61,6 +61,101 @@ test("forwards every control-plane CSRF cookie as a distinct response header", a
   });
 });
 
+test("proxies the allowlisted admin login redirect without a workload credential", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url: String(url), options });
+    return new Response(null, {
+      status: 302,
+      headers: { location: "https://identity.example/authorize?state=opaque" }
+    });
+  };
+  await withServer({ mode: "control-plane", upstreamBaseUrl: "https://control.example", upstreamToken: "workload-secret", fetchImpl }, async (base) => {
+    const response = await fetch(`${base}/admin-auth/oidc/login?return_to=%2Fworkspaces&reauthenticate=true`, {
+      redirect: "manual",
+      headers: { cookie: "existing=session", "user-agent": "admin-console-test", "x-request-id": "request-123" }
+    });
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("location"), "https://identity.example/authorize?state=opaque");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "https://control.example/admin-auth/oidc/login?return_to=%2Fworkspaces&reauthenticate=true");
+    assert.equal(calls[0].options.redirect, "manual");
+    assert.equal(calls[0].options.headers.authorization, undefined);
+    assert.equal(calls[0].options.headers.cookie, "existing=session");
+    assert.equal(calls[0].options.headers["user-agent"], "admin-console-test");
+    assert.equal(calls[0].options.headers["x-request-id"], "request-123");
+  });
+});
+
+test("preserves callback redirects and every admin session cookie", async () => {
+  const fetchImpl = async () => {
+    const headers = new Headers({
+      location: "http://127.0.0.1:14173/workspaces",
+      "content-type": "text/plain; charset=utf-8"
+    });
+    headers.append("set-cookie", "__Host-acornops_admin_session=opaque; Path=/; HttpOnly; Secure; SameSite=Strict");
+    headers.append("set-cookie", "acornops_admin_csrf=csrf; Path=/; SameSite=Strict");
+    return new Response("Found", { status: 302, headers });
+  };
+  await withServer({ mode: "control-plane", upstreamBaseUrl: "https://control.example", upstreamToken: "secret", fetchImpl }, async (base) => {
+    const response = await fetch(`${base}/admin-auth/oidc/callback?code=code-1&state=state-1`, { redirect: "manual" });
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("location"), "http://127.0.0.1:14173/workspaces");
+    assert.equal(await response.text(), "Found");
+    assert.deepEqual(response.headers.getSetCookie(), [
+      "__Host-acornops_admin_session=opaque; Path=/; HttpOnly; Secure; SameSite=Strict",
+      "acornops_admin_csrf=csrf; Path=/; SameSite=Strict"
+    ]);
+  });
+});
+
+test("forwards logout session and CSRF evidence through the auth proxy", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url: String(url), options });
+    return Response.json({ status: "ok" }, {
+      headers: { "set-cookie": "__Host-acornops_admin_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict" }
+    });
+  };
+  await withServer({ mode: "control-plane", upstreamBaseUrl: "https://control.example", upstreamToken: "secret", fetchImpl }, async (base) => {
+    const response = await fetch(`${base}/admin-auth/logout`, {
+      method: "POST",
+      headers: {
+        cookie: "__Host-acornops_admin_session=opaque; acornops_admin_csrf=csrf",
+        origin: base,
+        "x-csrf-token": "csrf"
+      }
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: "ok" });
+    assert.equal(calls[0].url, "https://control.example/admin-auth/logout");
+    assert.equal(calls[0].options.headers.cookie, "__Host-acornops_admin_session=opaque; acornops_admin_csrf=csrf");
+    assert.equal(calls[0].options.headers.origin, base);
+    assert.equal(calls[0].options.headers["x-csrf-token"], "csrf");
+  });
+});
+
+test("admin auth routing fails closed instead of serving the SPA", async () => {
+  let called = false;
+  const fetchImpl = async () => { called = true; throw new Error("unexpected"); };
+  await withServer({ mode: "control-plane", upstreamBaseUrl: "https://control.example", upstreamToken: "secret", fetchImpl }, async (base) => {
+    const unknown = await fetch(`${base}/admin-auth/oidc/unknown`);
+    assert.equal(unknown.status, 404);
+    assert.match(unknown.headers.get("content-type"), /application\/json/);
+    assert.equal((await unknown.json()).error.code, "ADMIN_AUTH_ROUTE_NOT_ALLOWED");
+
+    const wrongMethod = await fetch(`${base}/admin-auth/oidc/login`, { method: "POST" });
+    assert.equal(wrongMethod.status, 405);
+    assert.equal(wrongMethod.headers.get("allow"), "GET");
+
+    const unexpectedQuery = await fetch(`${base}/admin-auth/oidc/login?redirect_uri=https%3A%2F%2Fevil.example`);
+    assert.equal(unexpectedQuery.status, 400);
+    assert.equal((await unexpectedQuery.json()).error.code, "VALIDATION_ERROR");
+    assert.equal(called, false);
+  });
+});
+
 test("serves the application with security headers", async () => {
   await withServer({ mode: "mock" }, async (base) => {
     const response = await fetch(`${base}/workspaces/ws_atlas`);

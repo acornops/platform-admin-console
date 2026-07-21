@@ -20,6 +20,8 @@
 
 The token must contain only the scopes listed in the mirrored manifest. `admin:*` and target, run, agent-key, and tooling scopes are rejected.
 
+The console serves `/admin-auth/oidc/login`, `/admin-auth/oidc/callback`, `/admin-auth/csrf`, and `/admin-auth/logout` on its own origin and forwards only those exact routes to the control plane. Redirects and all `Set-Cookie` headers are preserved; the server-only workload token is not added to human-authentication requests. Unknown auth paths, methods, and query parameters fail closed as JSON and never fall through to the SPA.
+
 ## Health and readiness
 
 `GET /health/live` is a local process check. `GET /health/ready` validates production configuration and calls the control-plane `/ready` endpoint; it returns `503` when upstream is unavailable. The governance readiness view remains a separate authenticated BFF request to `/admin/v1/system/readiness` and is not used as the Kubernetes probe.
@@ -36,3 +38,4 @@ Before live promotion, verify the exact hostname and callback URI, IdP issuer/au
 - Treat unexpected `ADMIN_CREDENTIAL_REJECTED` as a scope or configuration incident.
 - Never enable a denied route to work around an operational incident.
 - Preserve platform-admin audit events and request IDs for investigation.
+- A repeated `missing_human_session` burst paired with browser reloads indicates an expired admin session. Confirm that the console's `/admin-auth/oidc/login` returns a redirect rather than the SPA document, then inspect the OIDC/control-plane dependency using the correlated request ID.

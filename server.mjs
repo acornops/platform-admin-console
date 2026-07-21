@@ -20,6 +20,13 @@ const FONT_FILES = new Map([
   ["/fonts/ubuntu-mono-latin-700-normal.woff2", "node_modules/@fontsource/ubuntu-mono/files/ubuntu-mono-latin-700-normal.woff2"]
 ]);
 const API_PREFIX = "/admin-console-api";
+const ADMIN_AUTH_PREFIX = "/admin-auth";
+const ADMIN_AUTH_ROUTE_DEFINITIONS = Object.freeze([
+  Object.freeze({ method: "GET", path: "/admin-auth/oidc/login", query: Object.freeze(["return_to", "reauthenticate"]) }),
+  Object.freeze({ method: "GET", path: "/admin-auth/oidc/callback", query: Object.freeze(["code", "state"]) }),
+  Object.freeze({ method: "GET", path: "/admin-auth/csrf", query: Object.freeze([]) }),
+  Object.freeze({ method: "POST", path: "/admin-auth/logout", query: Object.freeze([]) })
+]);
 const MAX_BODY_BYTES = 32_768;
 const SECURITY_HEADERS = Object.freeze({
   "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
@@ -74,6 +81,10 @@ export function createAdminConsoleServer(options = {}) {
         await handleReadiness({ response, mode, upstreamBaseUrl, upstreamToken, fetchImpl });
         return;
       }
+      if (url.pathname === ADMIN_AUTH_PREFIX || url.pathname.startsWith(`${ADMIN_AUTH_PREFIX}/`)) {
+        await handleAdminAuth({ request, response, url, mode, upstreamBaseUrl, fetchImpl });
+        return;
+      }
       if (url.pathname.startsWith(API_PREFIX)) {
         await handleApi({ request, response, url, mode, upstreamBaseUrl, upstreamToken, mockStore, fetchImpl, credentialState, requireHumanIdentity });
         return;
@@ -87,6 +98,46 @@ export function createAdminConsoleServer(options = {}) {
       sendJson(response, error?.statusCode || 500, apiError(error?.publicCode || "REQUEST_FAILED", error?.publicMessage || "Request failed"));
     }
   });
+}
+
+async function handleAdminAuth({ request, response, url, mode, upstreamBaseUrl, fetchImpl }) {
+  setHeaders(response, { "cache-control": "no-store" });
+  const pathDefinition = ADMIN_AUTH_ROUTE_DEFINITIONS.find((definition) => definition.path === url.pathname);
+  if (!pathDefinition) {
+    sendJson(response, 404, apiError("ADMIN_AUTH_ROUTE_NOT_ALLOWED", "The requested authentication route is not available"));
+    return;
+  }
+  if (pathDefinition.method !== request.method) {
+    response.setHeader("allow", pathDefinition.method);
+    sendJson(response, 405, apiError("METHOD_NOT_ALLOWED", "Method not allowed"));
+    return;
+  }
+  if ([...url.searchParams.keys()].some((name) => !pathDefinition.query.includes(name))) {
+    sendJson(response, 400, apiError("VALIDATION_ERROR", "Query parameter is not allowed for this authentication route"));
+    return;
+  }
+  if (mode !== "control-plane" || !upstreamBaseUrl) {
+    sendJson(response, 503, apiError("ADMIN_UPSTREAM_NOT_CONFIGURED", "The admin control plane is not configured"));
+    return;
+  }
+
+  const result = await callAdminAuthUpstream({
+    path: pathDefinition.path,
+    method: pathDefinition.method,
+    query: url.searchParams,
+    upstreamBaseUrl,
+    fetchImpl,
+    browserRequest: request
+  });
+  if (result.error) {
+    sendJson(response, result.status, result.error);
+    return;
+  }
+  if (result.setCookies.length) response.setHeader("set-cookie", result.setCookies);
+  if (result.location) response.setHeader("location", result.location);
+  if (result.contentType) response.setHeader("content-type", result.contentType);
+  response.writeHead(result.status);
+  response.end(result.body);
 }
 
 async function handleReadiness({ response, mode, upstreamBaseUrl, upstreamToken, fetchImpl }) {
@@ -254,6 +305,44 @@ async function callAdminUpstream({ path, method, query, body, upstreamBaseUrl, u
   }
 }
 
+async function callAdminAuthUpstream({ path, method, query, upstreamBaseUrl, fetchImpl, browserRequest }) {
+  const upstreamUrl = new URL(path, ensureTrailingSlash(upstreamBaseUrl));
+  upstreamUrl.search = query.toString();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  try {
+    const upstream = await fetchImpl(upstreamUrl, {
+      method,
+      headers: {
+        accept: "application/json, text/html;q=0.9, */*;q=0.8",
+        ...(browserRequest?.headers?.cookie ? { cookie: browserRequest.headers.cookie } : {}),
+        ...(browserRequest?.headers?.origin ? { origin: browserRequest.headers.origin } : {}),
+        ...(browserRequest?.headers?.referer ? { referer: browserRequest.headers.referer } : {}),
+        ...(browserRequest?.headers?.["user-agent"] ? { "user-agent": browserRequest.headers["user-agent"] } : {}),
+        ...(browserRequest?.headers?.["x-csrf-token"] ? { "x-csrf-token": browserRequest.headers["x-csrf-token"] } : {}),
+        ...(browserRequest?.headers?.["x-request-id"] ? { "x-request-id": browserRequest.headers["x-request-id"] } : {})
+      },
+      redirect: "manual",
+      signal: controller.signal
+    });
+    return {
+      status: upstream.status,
+      body: Buffer.from(await upstream.arrayBuffer()),
+      contentType: upstream.headers.get("content-type") || "",
+      location: upstream.headers.get("location") || "",
+      setCookies: readSetCookies(upstream.headers)
+    };
+  } catch (error) {
+    const timeoutError = error?.name === "AbortError";
+    return {
+      status: timeoutError ? 504 : 502,
+      error: apiError(timeoutError ? "ADMIN_UPSTREAM_TIMEOUT" : "ADMIN_UPSTREAM_UNAVAILABLE", "The admin control plane is unavailable", true)
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function readSetCookies(headers) {
   if (typeof headers.getSetCookie === "function") {
     const values = headers.getSetCookie();
@@ -328,8 +417,13 @@ function logRequest({ request, response, requestId, startedAt }) {
   const pathname = new URL(request.url || "/", "http://console.local").pathname;
   const browserPath = pathname.startsWith(API_PREFIX) ? pathname.slice(API_PREFIX.length) || "/" : "";
   const matched = browserPath ? matchAdminRoute(request.method, browserPath) : null;
+  const authDefinition = ADMIN_AUTH_ROUTE_DEFINITIONS.find((definition) => definition.path === pathname);
   const route = pathname === "/health/live" || pathname === "/health/ready"
     ? pathname
+    : authDefinition
+      ? authDefinition.path
+      : pathname === ADMIN_AUTH_PREFIX || pathname.startsWith(`${ADMIN_AUTH_PREFIX}/`)
+        ? `${ADMIN_AUTH_PREFIX}/denied`
     : browserPath === "/auth/csrf"
       ? `${API_PREFIX}/auth/csrf`
       : matched
