@@ -23,7 +23,7 @@ const API_PREFIX = "/admin-console-api";
 const ADMIN_AUTH_PREFIX = "/admin-auth";
 const ADMIN_AUTH_ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ method: "GET", path: "/admin-auth/oidc/login", query: Object.freeze(["return_to", "reauthenticate"]) }),
-  Object.freeze({ method: "GET", path: "/admin-auth/oidc/callback", query: Object.freeze(["code", "state"]) }),
+  Object.freeze({ method: "GET", path: "/admin-auth/oidc/callback", query: Object.freeze(["code", "state", "iss", "session_state"]) }),
   Object.freeze({ method: "GET", path: "/admin-auth/csrf", query: Object.freeze([]) }),
   Object.freeze({ method: "POST", path: "/admin-auth/logout", query: Object.freeze([]) })
 ]);
