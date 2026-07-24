@@ -6,6 +6,7 @@
 - Request bodies have a fixed size limit.
 - Static assets and governance responses use explicit cache policies.
 - Upstream errors are normalized without leaking credentials or response internals.
+- Navigational OIDC `5xx` failures render a no-store retry page with request correlation instead of raw upstream JSON.
 - `/health/live` reports process liveness without depending on the control plane.
 - `/health/ready` verifies production configuration and the control-plane `/ready` endpoint, returning `503` when upstream is unavailable.
 - Structured request logs include request ID, route template, status, and duration without logging tenant content, tokens, or raw identifiers.

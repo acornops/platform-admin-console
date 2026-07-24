@@ -88,6 +88,40 @@ test("proxies the allowlisted admin login redirect without a workload credential
   });
 });
 
+test("renders a safe retry page instead of an upstream internal auth error", async () => {
+  const fetchImpl = async () => Response.json({
+    error: {
+      code: "ADMIN_IDENTITY_PROVIDER_UNAVAILABLE",
+      message: "Platform administrator sign-in is temporarily unavailable",
+      retryable: true,
+      request_id: "control-request-123"
+    }
+  }, { status: 503 });
+  await withServer({ mode: "control-plane", upstreamBaseUrl: "https://control.example", upstreamToken: "secret", fetchImpl }, async (base) => {
+    const response = await fetch(`${base}/admin-auth/oidc/login?return_to=%2Fworkspaces`);
+    const body = await response.text();
+    assert.equal(response.status, 503);
+    assert.match(response.headers.get("content-type"), /text\/html/);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.match(body, /Admin sign-in is temporarily unavailable/);
+    assert.match(body, /control-request-123/);
+    assert.match(body, /return_to=%2Fworkspaces/);
+    assert.doesNotMatch(body, /INTERNAL_ERROR|ADMIN_OIDC_DISCOVERY/);
+  });
+});
+
+test("renders the safe retry page when the auth upstream cannot be reached", async () => {
+  const fetchImpl = async () => { throw new Error("socket contained secret details"); };
+  await withServer({ mode: "control-plane", upstreamBaseUrl: "https://control.example", upstreamToken: "secret", fetchImpl }, async (base) => {
+    const response = await fetch(`${base}/admin-auth/oidc/login`, { headers: { "x-request-id": "console-request-123" } });
+    const body = await response.text();
+    assert.equal(response.status, 502);
+    assert.match(body, /Admin sign-in is temporarily unavailable/);
+    assert.match(body, /console-request-123/);
+    assert.doesNotMatch(body, /socket|secret details/);
+  });
+});
+
 test("preserves callback redirects and every admin session cookie", async () => {
   const fetchImpl = async () => {
     const headers = new Headers({

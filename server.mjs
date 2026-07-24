@@ -82,7 +82,7 @@ export function createAdminConsoleServer(options = {}) {
         return;
       }
       if (url.pathname === ADMIN_AUTH_PREFIX || url.pathname.startsWith(`${ADMIN_AUTH_PREFIX}/`)) {
-        await handleAdminAuth({ request, response, url, mode, upstreamBaseUrl, fetchImpl });
+        await handleAdminAuth({ request, response, url, mode, upstreamBaseUrl, fetchImpl, requestId });
         return;
       }
       if (url.pathname.startsWith(API_PREFIX)) {
@@ -100,7 +100,7 @@ export function createAdminConsoleServer(options = {}) {
   });
 }
 
-async function handleAdminAuth({ request, response, url, mode, upstreamBaseUrl, fetchImpl }) {
+async function handleAdminAuth({ request, response, url, mode, upstreamBaseUrl, fetchImpl, requestId }) {
   setHeaders(response, { "cache-control": "no-store" });
   const pathDefinition = ADMIN_AUTH_ROUTE_DEFINITIONS.find((definition) => definition.path === url.pathname);
   if (!pathDefinition) {
@@ -130,7 +130,22 @@ async function handleAdminAuth({ request, response, url, mode, upstreamBaseUrl, 
     browserRequest: request
   });
   if (result.error) {
+    if (isAdminSignInNavigation(pathDefinition.path)) {
+      sendAdminSignInUnavailable(response, result.status, requestId, true, url.searchParams.get("return_to"));
+      return;
+    }
     sendJson(response, result.status, result.error);
+    return;
+  }
+  if (result.status >= 500 && isAdminSignInNavigation(pathDefinition.path)) {
+    const upstreamFailure = parseAdminAuthFailure(result);
+    sendAdminSignInUnavailable(
+      response,
+      result.status,
+      upstreamFailure.requestId || requestId,
+      upstreamFailure.retryable,
+      url.searchParams.get("return_to")
+    );
     return;
   }
   if (result.setCookies.length) response.setHeader("set-cookie", result.setCookies);
@@ -138,6 +153,59 @@ async function handleAdminAuth({ request, response, url, mode, upstreamBaseUrl, 
   if (result.contentType) response.setHeader("content-type", result.contentType);
   response.writeHead(result.status);
   response.end(result.body);
+}
+
+function isAdminSignInNavigation(path) {
+  return path === "/admin-auth/oidc/login" || path === "/admin-auth/oidc/callback";
+}
+
+function parseAdminAuthFailure(result) {
+  if (!result.contentType.includes("application/json")) return { retryable: true, requestId: "" };
+  try {
+    const payload = JSON.parse(result.body.toString("utf8"));
+    return {
+      retryable: payload?.error?.retryable !== false,
+      requestId: typeof payload?.error?.request_id === "string" ? payload.error.request_id : ""
+    };
+  } catch {
+    return { retryable: true, requestId: "" };
+  }
+}
+
+function sendAdminSignInUnavailable(response, status, requestId, retryable, returnTo) {
+  const safeReturnTo = returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/";
+  const retryUrl = `/admin-auth/oidc/login?return_to=${encodeURIComponent(safeReturnTo)}`;
+  const title = retryable ? "Admin sign-in is temporarily unavailable" : "Admin sign-in is unavailable";
+  const guidance = retryable
+    ? "The identity service could not be reached. Try again in a moment."
+    : "The identity service is not configured correctly. Contact your platform operator.";
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign-in unavailable · AcornOps</title>
+  <link rel="stylesheet" href="/auth-unavailable.css">
+</head>
+<body>
+  <main class="auth-error-card" aria-labelledby="auth-error-title">
+    <div class="auth-error-mark" aria-hidden="true">A</div>
+    <p class="auth-error-eyebrow">AcornOps Platform Admin</p>
+    <h1 id="auth-error-title">${title}</h1>
+    <p>${guidance}</p>
+    <div class="auth-error-actions">
+      ${retryable ? `<a class="auth-error-primary" href="${retryUrl}">Try again</a>` : ""}
+      <a class="auth-error-secondary" href="/">Return to console</a>
+    </div>
+    <p class="auth-error-request">Request ID: <code>${escapeHtml(requestId)}</code></p>
+  </main>
+</body>
+</html>`;
+  response.writeHead(status, {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "no-store"
+  });
+  response.end(html);
 }
 
 async function handleReadiness({ response, mode, upstreamBaseUrl, upstreamToken, fetchImpl }) {
@@ -412,6 +480,15 @@ function ensureTrailingSlash(value) { return value.endsWith("/") ? value : `${va
 function safeRequestId(value) {
   const candidate = Array.isArray(value) ? value[0] : value;
   return typeof candidate === "string" && /^[A-Za-z0-9._:-]{1,128}$/.test(candidate) ? candidate : randomUUID();
+}
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
 }
 function logRequest({ request, response, requestId, startedAt }) {
   const pathname = new URL(request.url || "/", "http://console.local").pathname;

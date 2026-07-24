@@ -20,7 +20,7 @@
 
 The token must contain only the scopes listed in the mirrored manifest. `admin:*` and target, run, agent-key, and tooling scopes are rejected.
 
-The console serves `/admin-auth/oidc/login`, `/admin-auth/oidc/callback`, `/admin-auth/csrf`, and `/admin-auth/logout` on its own origin and forwards only those exact routes to the control plane. Redirects and all `Set-Cookie` headers are preserved; the server-only workload token is not added to human-authentication requests. Unknown auth paths, methods, and query parameters fail closed as JSON and never fall through to the SPA.
+The console serves `/admin-auth/oidc/login`, `/admin-auth/oidc/callback`, `/admin-auth/csrf`, and `/admin-auth/logout` on its own origin and forwards only those exact routes to the control plane. Redirects and all `Set-Cookie` headers are preserved; the server-only workload token is not added to human-authentication requests. Unknown auth paths, methods, and query parameters fail closed as JSON and never fall through to the SPA. A login or callback `5xx` is rendered as a no-store, same-origin sign-in-unavailable page with a safe retry action and correlated request ID; the upstream error body is never reflected into browser HTML.
 
 ## Health and readiness
 
@@ -38,4 +38,4 @@ Before live promotion, verify the exact hostname and callback URI, IdP issuer/au
 - Treat unexpected `ADMIN_CREDENTIAL_REJECTED` as a scope or configuration incident.
 - Never enable a denied route to work around an operational incident.
 - Preserve platform-admin audit events and request IDs for investigation.
-- A repeated `missing_human_session` burst paired with browser reloads indicates an expired admin session. Confirm that the console's `/admin-auth/oidc/login` returns a redirect rather than the SPA document, then inspect the OIDC/control-plane dependency using the correlated request ID.
+- A repeated `missing_human_session` burst paired with browser reloads indicates an expired admin session. Confirm that the console's `/admin-auth/oidc/login` returns an IdP redirect or the deliberate sign-in-unavailable page rather than the SPA document, then inspect `control_plane_admin_auth_failures_total` and structured control-plane logs using the correlated request ID.

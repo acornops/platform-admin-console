@@ -45,7 +45,7 @@
       "id": "REQ-AUTH-001",
       "summary": "Production access requires OIDC-authenticated humans, three fixed roles, short sessions, CSRF, and recent authentication for writes.",
       "evidence": [
-        { "file": "server.mjs", "contains": ["NODE_ENV", "ADMIN_CONSOLE_DATA_MODE=control-plane", "browserRequest"] },
+        { "file": "server.mjs", "contains": ["NODE_ENV", "ADMIN_CONSOLE_DATA_MODE=control-plane", "browserRequest", "sendAdminSignInUnavailable", "request_id"] },
         { "file": "public/app.js", "contains": ["admin-auth/oidc/login", "ADMIN_REAUTH_REQUIRED", "x-csrf-token", "platform-admin-auditor"] },
         { "file": "DESIGN.md", "contains": ["DEV-005", "Resolved by dedicated OIDC login"] },
         { "file": "docs/contracts/manifest.json", "contains": ["platform-admin-viewer", "platform-admin-auditor", "human platform-admin session"] }
