@@ -127,7 +127,9 @@ test("renders the safe retry page when the auth upstream cannot be reached", asy
 });
 
 test("preserves callback redirects and every admin session cookie", async () => {
-  const fetchImpl = async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(String(url));
     const headers = new Headers({
       location: "http://127.0.0.1:14173/workspaces",
       "content-type": "text/plain; charset=utf-8"
@@ -137,10 +139,11 @@ test("preserves callback redirects and every admin session cookie", async () => 
     return new Response("Found", { status: 302, headers });
   };
   await withServer({ mode: "control-plane", upstreamBaseUrl: "https://control.example", upstreamToken: "secret", fetchImpl }, async (base) => {
-    const response = await fetch(`${base}/admin-auth/oidc/callback?code=code-1&state=state-1`, { redirect: "manual" });
+    const response = await fetch(`${base}/admin-auth/oidc/callback?code=code-1&state=state-1&session_state=session-1&iss=${encodeURIComponent("https://identity.example/realms/acornops")}`, { redirect: "manual" });
     assert.equal(response.status, 302);
     assert.equal(response.headers.get("location"), "http://127.0.0.1:14173/workspaces");
     assert.equal(await response.text(), "Found");
+    assert.equal(calls[0], "https://control.example/admin-auth/oidc/callback?code=code-1&state=state-1&session_state=session-1&iss=https%3A%2F%2Fidentity.example%2Frealms%2Facornops");
     assert.deepEqual(response.headers.getSetCookie(), [
       "__Host-acornops_admin_session=opaque; Path=/; HttpOnly; Secure; SameSite=Strict",
       "acornops_admin_csrf=csrf; Path=/; SameSite=Strict"
