@@ -45,7 +45,9 @@ test("fails readiness closed when the control plane is unavailable", async () =>
 });
 
 test("forwards every control-plane CSRF cookie as a distinct response header", async () => {
-  const fetchImpl = async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url: String(url), options });
     const headers = new Headers({ "content-type": "application/json" });
     headers.append("set-cookie", "acornops_cp_csrf=cp-token; Path=/; SameSite=Strict");
     headers.append("set-cookie", "acornops_admin_csrf=admin-token; Path=/; SameSite=Strict");
@@ -58,6 +60,8 @@ test("forwards every control-plane CSRF cookie as a distinct response header", a
       "acornops_cp_csrf=cp-token; Path=/; SameSite=Strict",
       "acornops_admin_csrf=admin-token; Path=/; SameSite=Strict"
     ]);
+    assert.equal(calls[0].url, "https://control.example/admin-auth/csrf");
+    assert.equal(calls[0].options.headers.authorization, undefined);
   });
 });
 

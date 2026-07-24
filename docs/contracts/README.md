@@ -8,7 +8,7 @@ The control plane owns `/admin/v1`. Its route implementation, Zod request schema
 
 | Producer | Consumer | Surface | Direction |
 | --- | --- | --- | --- |
-| Control plane | Platform admin console BFF | Fourteen allowlisted `/admin/v1` methods and paths | BFF to control plane |
+| Control plane | Platform admin console BFF | Fifteen allowlisted `/admin/v1` methods and paths | BFF to control plane |
 | Platform admin console BFF | Browser application | Same-origin `/admin-console-api/*` routes with privacy-projected responses | Browser to BFF |
 
 ## Platform Dependency Summary
@@ -34,7 +34,7 @@ The console has one runtime service dependency: `control-plane`. It does not cal
 - Query parameter names are allowlisted per route before forwarding.
 - `lib/admin-contract.mjs` projects successful responses before browser delivery.
 - Workspace operational summaries and operational admin-audit actions are removed even if the producer returns them.
-- Admin audit attribution is credential-level: the console displays the contract's `adminTokenId` as `Admin Actor` and does not infer a human identity.
+- Admin audit attribution identifies the authenticated human from immutable OIDC issuer and subject fields, with display name and email snapshots for readability. The BFF workload token remains separate credential evidence.
 - The mock store emits producer-shaped DTOs before the same projection is applied.
 - All accepted deviations are tracked in `DESIGN.md`.
 

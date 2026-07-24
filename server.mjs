@@ -284,9 +284,28 @@ async function handleApi(context) {
       sendJson(response, 503, apiError("ADMIN_UPSTREAM_NOT_CONFIGURED", "The admin control plane is not configured"));
       return;
     }
-    const result = await callAdminUpstream({ path: "/admin-auth/csrf", method: "GET", query: new URLSearchParams(), upstreamBaseUrl, upstreamToken, fetchImpl, browserRequest: request });
-    if (result.setCookies?.length) response.setHeader("set-cookie", result.setCookies);
-    sendJson(response, result.status, result.payload);
+    const result = await callAdminAuthUpstream({
+      path: "/admin-auth/csrf",
+      method: "GET",
+      query: new URLSearchParams(),
+      upstreamBaseUrl,
+      fetchImpl,
+      browserRequest: request
+    });
+    if (result.error) {
+      sendJson(response, result.status, result.error);
+      return;
+    }
+    if (result.setCookies.length) response.setHeader("set-cookie", result.setCookies);
+    if (!result.contentType.includes("application/json")) {
+      sendJson(response, 502, apiError("INVALID_UPSTREAM_RESPONSE", "The admin control plane returned an invalid response"));
+      return;
+    }
+    try {
+      sendJson(response, result.status, JSON.parse(result.body.toString("utf8")));
+    } catch {
+      sendJson(response, 502, apiError("INVALID_UPSTREAM_RESPONSE", "The admin control plane returned an invalid response"));
+    }
     return;
   }
   const matched = matchAdminRoute(request.method, browserPath);
