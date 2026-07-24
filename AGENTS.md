@@ -4,7 +4,7 @@ Use this file as a map. Durable repository knowledge lives in the linked docs.
 
 ## Agent-Assisted Development
 
-Start agents from this repository root for local work. Start from the parent `acornops-workspace` root for contract, deployment, or other cross-repository changes.
+Start agents from this repository root for local work. Start from the parent `acornops` repository root for contract, deployment, or other cross-repository changes.
 
 ## Start Here
 
