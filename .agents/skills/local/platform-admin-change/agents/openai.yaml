@@ -1,0 +1,4 @@
+interface:
+  display_name: "Platform Admin Change"
+  short_description: "Preserve console requirements and boundaries"
+  default_prompt: "Use $platform-admin-change to implement a platform admin console change without reviving superseded behavior."

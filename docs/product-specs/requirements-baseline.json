@@ -1,0 +1,378 @@
+{
+  "version": 1,
+  "lastReviewed": "2026-07-21",
+  "authority": "docs/product-specs/current-requirements.md",
+  "expectedRuntime": {
+    "adminRouteCount": 15,
+    "allowedScopeCount": 7
+  },
+  "normativeSources": [
+    "PRODUCT.md",
+    "ARCHITECTURE.md",
+    "DESIGN.md",
+    "docs/product-specs/current-requirements.md",
+    "docs/contracts/manifest.json"
+  ],
+  "required": [
+    {
+      "id": "REQ-BND-001",
+      "summary": "The browser uses only same-origin fixed governance and authentication boundaries, and the BFF maps only explicit /admin/v1 routes.",
+      "evidence": [
+        { "file": "ARCHITECTURE.md", "contains": ["same-origin /admin-console-api/*", "same-origin /admin-auth/*", "Control Plane /admin/v1/*", "no generic proxy"] },
+        { "file": "server.mjs", "contains": ["ADMIN_AUTH_ROUTE_DEFINITIONS", "redirect: \"manual\"", "ADMIN_AUTH_ROUTE_NOT_ALLOWED"] },
+        { "file": "public/app.js", "excludes": ["/admin/v1/"] },
+        { "file": "lib/admin-route-policy.mjs", "contains": ["/admin/v1/admin-audit-events", "sanitizedAdminQuery"], "excludes": ["/api/v1/", "/internal/v1/"] }
+      ]
+    },
+    {
+      "id": "REQ-BND-002",
+      "summary": "Platform administrators receive governance metadata only and cannot access tenant operations or workload controls.",
+      "evidence": [
+        { "file": "PRODUCT.md", "contains": ["without granting platform administrators access to workspace operational content", "must not run commands that modify workloads"] },
+        { "file": "lib/admin-route-policy.mjs", "contains": ["containsOperationalResource", "containsSessionAccess"] },
+        { "file": "public/overview-view.js", "contains": ["No workspace logs or tenant audit events", "commands, tools, credentials, or workload changes"] }
+      ]
+    },
+    {
+      "id": "REQ-BND-003",
+      "summary": "The console rejects wildcard and operational admin scopes and privacy-projects responses.",
+      "evidence": [
+        { "file": "lib/admin-contract.mjs", "contains": ["ALLOWED_ADMIN_SCOPES", "FORBIDDEN_ADMIN_SCOPES", "validateAdminIdentity", "projectAdminResponse"] },
+        { "file": "docs/contracts/manifest.json", "contains": ["admin:*", "admin:target:read", "admin:run:read", "privacyProjection"] }
+      ]
+    },
+    {
+      "id": "REQ-AUTH-001",
+      "summary": "Production access requires OIDC-authenticated humans, three fixed roles, short sessions, CSRF, and recent authentication for writes.",
+      "evidence": [
+        { "file": "server.mjs", "contains": ["NODE_ENV", "ADMIN_CONSOLE_DATA_MODE=control-plane", "browserRequest", "sendAdminSignInUnavailable", "request_id"] },
+        { "file": "public/app.js", "contains": ["admin-auth/oidc/login", "ADMIN_REAUTH_REQUIRED", "x-csrf-token", "platform-admin-auditor"] },
+        { "file": "DESIGN.md", "contains": ["DEV-005", "Resolved by dedicated OIDC login"] },
+        { "file": "docs/contracts/manifest.json", "contains": ["platform-admin-viewer", "platform-admin-auditor", "human platform-admin session"] }
+      ]
+    },
+    {
+      "id": "REQ-UX-001",
+      "summary": "The console reuses the management-console shell and clickable account menu with local System, Light, and Dark appearance preferences plus logout, without inventing local account settings.",
+      "evidence": [
+        { "file": "public/index.html", "contains": ["<title>Admin · AcornOps</title>", "data-console=\"platform-admin\"", "console-identity", "Platform Admin", "admin-account-bar", "admin-account-trigger", "admin-account-menu", "theme-menu-trigger", "admin-logout"], "excludes": ["<title>Platform Admin Console · AcornOps</title>", "Tenant data is out of scope", "Account Settings"] },
+        { "file": "public/account-menu.js", "contains": ["app_theme", "prefers-color-scheme: dark", "aria-checked", "Logging out…"], "excludes": ["password", "account settings", "Account Settings"] },
+        { "file": "public/styles.css", "contains": ["--admin-sidebar: oklch(0.972 0.014 55)", "html[data-resolved-theme=\"dark\"]", "grid-template-columns: 256px minmax(0, 1fr)", "font-family: \"Outfit\"", ".admin-account-bar", ".admin-account-menu", "border-top: 1px solid var(--admin-border)"] },
+        { "file": "public/overview-view.js", "contains": ["overview-boundary", "Governance data only.", "<svg viewBox=\"0 0 24 24\"", "<rect width=\"18\" height=\"11\""] },
+        { "file": "DESIGN.md", "contains": ["shares the management console's product shell", "quiet cream-clay sidebar"] }
+      ]
+    },
+    {
+      "id": "REQ-OVR-001",
+      "summary": "Overview provides a brief governance-safe footprint, a connected-environment ranking, and exactly three useful product signals.",
+      "evidence": [
+        { "file": "public/app.js", "contains": ["loadAllAdminPages(\"/workspaces\")", "loadAllAdminPages(\"/users\")", "page.nextCursor"] },
+        { "file": "public/overview-view.js", "contains": ["Platform insights", "Platform footprint", "Most connected environments", "clusterCount", "virtualMachineCount", " total (", " · ", "Product signals", "suspended workspace", "suspended member access", "Identity verification", "No workspace logs or tenant audit events"], "excludes": ["readiness.status", "Access assignments", "Most users with access", "Privileged changes recorded", "Plan adoption", "What merits attention now"] },
+        { "file": "test/overview-view.test.mjs", "contains": ["builds product metrics only from governance-safe portfolio fields", "preserving the data boundary"] }
+      ]
+    },
+    {
+      "id": "REQ-USR-001",
+      "summary": "The Users directory provides management-aligned search, verification and workspace filters, loaded-result count, and cursor pagination.",
+      "evidence": [
+        { "file": "public/user-directory.js", "contains": ["Review identity and workspace access for AcornOps users.", "Search name, email, or ID", "Filter by workspace", "Showing ${visibleUsers.length} of ${state.users.length}", "Load more", "emailVerified"] },
+        { "file": "public/menu-controls.js", "contains": ["Workspace suggestions", "aria-autocomplete", "select-trigger"] }
+      ]
+    },
+    {
+      "id": "REQ-USR-002",
+      "summary": "Selecting a user keeps the directory in context and opens an accessible right-side details panel.",
+      "evidence": [
+        { "file": "public/index.html", "contains": ["id=\"user-panel\" role=\"dialog\" aria-modal=\"true\"", "aria-label=\"Close user details\""] },
+        { "file": "public/styles.css", "contains": ["width: min(720px, calc(100vw - 256px))", ".user-panel-layer.open .user-panel"] },
+        { "file": "public/app.js", "contains": ["trapFocus(event, userPanel)", "history.pushState({ userPanel: true }"] }
+      ]
+    },
+    {
+      "id": "REQ-USR-003",
+      "summary": "User details show identity metadata and alphabetized Workspace Access without source or origin labels.",
+      "evidence": [
+        { "file": "public/user-panel-view.js", "contains": [">User Details<", ">Workspace Access<", "localeCompare", "User ID", "Auth methods", "Created"], "excludes": ["Membership origin", "Created with workspace", "Added in AcornOps", "Source ·"] }
+      ]
+    },
+    {
+      "id": "REQ-USR-004",
+      "summary": "Workspace roles come from the producer catalog and update immediately after an explicit enabled Update Role click.",
+      "evidence": [
+        { "file": "public/user-panel-view.js", "contains": ["roleTemplateKeys", "data-update-role disabled>Update Role"] },
+        { "file": "public/user-membership-actions.js", "contains": ["select.value === editor.dataset.currentRole", "method: \"PATCH\"", "Role successfully updated to ${titleCase(nextRole)}."], "excludes": ["ticketRef", "recorded in Admin Audit"] }
+      ]
+    },
+    {
+      "id": "REQ-USR-005",
+      "summary": "Each access record supports audited revocation with a last-owner safeguard and no account-lifecycle claim.",
+      "evidence": [
+        { "file": "public/user-panel-view.js", "contains": ["data-tooltip=\"Revoke workspace access\"", "aria-label=\"Revoke workspace access from"] },
+        { "file": "public/user-membership-actions.js", "contains": ["method: \"DELETE\"", "submitDisabled: isOwner", "Transfer ownership before revoking this workspace access."], "excludes": ["AcornOps account"] },
+        { "file": "public/styles.css", "contains": [".membership-revoke {", "background: var(--danger-soft)", ".membership-revoke:hover"] }
+      ]
+    },
+    {
+      "id": "REQ-USR-006",
+      "summary": "Workspace access is revoked one membership at a time; non-atomic all-workspace offboarding is not exposed.",
+      "evidence": [
+        { "file": "public/user-membership-actions.js", "contains": ["confirmRemoval", "method: \"DELETE\"", "Other workspace access remains unchanged."], "excludes": ["confirmRevokeAll", "revocableEditors", "revoke all workspace access"] },
+        { "file": "public/user-panel-view.js", "contains": ["data-remove-membership"], "excludes": ["data-revoke-all-access", "Revoke All Access"] }
+      ]
+    },
+    {
+      "id": "REQ-USR-007",
+      "summary": "Successful revocation immediately synchronizes panel, table, and active workspace-filter counts.",
+      "evidence": [
+        { "file": "public/user-membership-actions.js", "contains": ["syncAccessState", "onRemoved?.(remaining, workspaceIds)"] },
+        { "file": "public/app.js", "contains": ["syncUserWorkspaceCount", "state.workspaceAccessByUser.set(user.id, new Set(workspaceIds))"] }
+      ]
+    },
+    {
+      "id": "REQ-USR-008",
+      "summary": "Verification is text plus an aligned dot; Unverified is readable orange without a pill.",
+      "evidence": [
+        { "file": "public/app.js", "contains": ["status verification-status", "Verified", "Unverified"] },
+        { "file": "public/styles.css", "contains": [".status.verification-status { display: inline-grid; grid-template-columns: 7px auto", ".status.unverified { color: var(--brand-orange-readable); }"], "excludes": ["--unverified-soft", "--unverified:"] }
+      ]
+    },
+    {
+      "id": "REQ-USR-009",
+      "summary": "The user panel grants an existing user access to an available workspace with a contract-provided role, without creating an account.",
+      "evidence": [
+        { "file": "public/user-panel-view.js", "contains": ["data-grant-access", ">Grant Access</button>"] },
+        { "file": "public/user-membership-actions.js", "contains": ["availableWorkspaces", "userId: user.id", "createUserIfMissing: false", "method: \"POST\""], "excludes": ["email: user.email"] },
+        { "file": "lib/admin-route-policy.mjs", "contains": ["POST\", `/workspaces/${segment}/members", "body.createUserIfMissing !== false", "The platform admin console cannot create user accounts"] }
+      ]
+    },
+    {
+      "id": "REQ-WSP-001",
+      "summary": "The Workspaces directory mirrors the accepted Users inventory pattern with complete lifecycle-status filtering and no plan filter.",
+      "evidence": [
+        { "file": "public/workspace-directory.js", "contains": ["Review workspace governance, plans, access, and creation details.", "Search workspace name", "All statuses", "enhanceSelect(status)", "statusFilter", "workspace.lifecycleStatus === statusFilter", "Showing ${state.workspaces.length} of ${state.workspaces.length}", "Load more", "params.set(\"q\", query)", "<th>Status</th>", "workspace-directory-status"], "excludes": ["workspace-plan", "workspace-quota-status", "<th>Plan</th>", "<th>Quota status</th>", "params.set(\"planKey\"", "params.set(\"overLimit\""] },
+        { "file": "public/styles.css", "contains": [".workspace-directory-toolbar { grid-template-columns: minmax(16rem, 1fr) minmax(12rem, .55fr) auto;"], "excludes": [".status.quota-status.within-limit", ".status.quota-status.over-limit"] }
+      ]
+    },
+    {
+      "id": "REQ-WSP-002",
+      "summary": "Workspace details show neutral plan-derived Kubernetes and VM connection limits, reserving red for exceptions, with the plan action attached to the current plan value.",
+      "evidence": [
+        { "file": "public/index.html", "contains": ["id=\"workspace-panel\" role=\"dialog\" aria-modal=\"true\"", "aria-label=\"Close workspace details\""] },
+        { "file": "public/app.js", "contains": ["openWorkspacePanel", "history.pushState({ workspacePanel: true }", "trapFocus(event, workspacePanel)", "loadSystemConfig()", "config.planCatalog?.plans"] },
+        { "file": "public/workspace-panel-view.js", "contains": [">Workspace Details<", "capacity-badge", "workspace-plan-value", "data-change-plan>Change Plan", "Kubernetes clusters", "Virtual machines", "Current plan"], "excludes": [">Quota Usage<", "quota-usage-badge", ">Manage Workspace<", "data-change-quotas", "Quota policy", "Adjust Quotas", "workspace logs", "commands"] },
+        { "file": "test/workspace-panel-view.test.mjs", "contains": ["markup.indexOf(\"Kubernetes clusters\") < markup.indexOf(\"Virtual machines\")", "markup.indexOf(\"Virtual machines\") < markup.indexOf(\"Current plan\")", "aria-label=\"4 of 10 connected\"", "workspace-plan-value"] },
+        { "file": "test/ui-alignment.test.mjs", "contains": ["background: var\\(--surface-strong\\); color: var\\(--text\\)", "assert.doesNotMatch(styles, /\\.capacity-badge\\.within-limit"] }
+      ]
+    },
+    {
+      "id": "REQ-WSP-003",
+      "summary": "Workspace Access defaults to a grouped read-only view and switches to workspace-scoped management for existing-user grants, role changes, and individual revocation while preserving the last-owner invariant.",
+      "evidence": [
+        { "file": "public/workspace-member-index.js", "contains": ["/workspaces/${encodeURIComponent(workspaceId)}/members?${params}", "page.nextCursor", "ROLE_RANK", "roleRank(left.role) - roleRank(right.role)", "localeCompare"] },
+        { "file": "public/workspace-panel-view.js", "contains": [">Workspace Access<", "workspace.memberCount", "workspace-members-table", "data-manage-workspace-access", ">Manage Access</button>", "data-add-workspace-access", "data-tooltip=\"Add workspace access\"", "aria-label=\"Add workspace access\""], "excludes": ["workspace-member-summary", "data-update-role", "data-remove-membership"] },
+        { "file": "public/workspace-access-actions.js", "contains": ["createUserIfMissing: false", "data-update-workspace-role", "data-revoke-member", "addButton.hidden = !managing"], "excludes": ["createUserIfMissing: true", "body: { email", "Revoke Non-owner Access", "data-revoke-workspace-access"] },
+        { "file": "public/app.js", "contains": ["loadWorkspaceMembers(api, workspace.id)", "workspaceMemberTableMarkup", "workspaceMemberErrorMarkup", "bindWorkspaceAccessManager"] },
+        { "file": "DESIGN.md", "contains": ["The default workspace view remains read-only", "Atomic ownership transfer remains contract-blocked"] }
+      ]
+    },
+    {
+      "id": "REQ-WSP-004",
+      "summary": "Workspace lifecycle is visible in the directory and a prominent panel badge; suspension and restoration require exact-name confirmation and retain reliable cancellation.",
+      "evidence": [
+        { "file": "public/workspace-directory.js", "contains": ["workspace-directory-status", "Suspended", "Active"] },
+        { "file": "public/workspace-panel-view.js", "contains": [">Workspace Lifecycle<", "lifecycleStatus", "workspace-lifecycle-status", "data-workspace-lifecycle", "does not stop or modify workloads"] },
+        { "file": "public/app.js", "contains": ["confirmation.value !== workspace.name", "restoring ? \"restore\" : \"suspend\"", "workspaceName: data.get(\"workspaceName\")", "const verb = restoring ? \"restored\" : \"suspended\"", "dialog.close(\"cancel\")"] },
+        { "file": "public/index.html", "contains": ["id=\"dialog-cancel\" type=\"button\">Cancel</button>"] },
+        { "file": "lib/admin-route-policy.mjs", "contains": ["/admin/v1/workspaces/:workspaceId/suspend", "/admin/v1/workspaces/:workspaceId/restore", "workspaceName"] }
+      ]
+    },
+    {
+      "id": "REQ-CTL-001",
+      "summary": "Dropdowns use the management-console trigger, menu, grey rotating chevron, themed clear control, and custom scrollbar treatment.",
+      "evidence": [
+        { "file": "public/styles.css", "contains": [".select-trigger {", "height: 44px", "stroke: var(--text-muted); transform: rotate(180deg)", "scrollbar-width: thin", ".combobox-clear-icon"] },
+        { "file": "public/menu-controls.js", "contains": ["combobox-clear", "select-chevron", "menu-check", "positionMenu"] }
+      ]
+    },
+    {
+      "id": "REQ-AUD-001",
+      "summary": "Admin Audit shows one human-readable administrator value in the Actor column while retaining complete projected evidence in protected details, governance-safe filters, correlation IDs, and cursor pagination.",
+      "evidence": [
+        { "file": "public/audit-page.js", "contains": ["Governance Events", "Privacy-filtered", "audit-columns", "Time", "Event", "Actor", "Object", "Details", "All outcomes", "Today", "Last 24h", "Past 7d", "Past 30d", "Custom range", "auditActorName", "auditDetailContent", "Governance", "Correlation ID", "Event data", "Copy event data", "eyeIcon", "audit-reference-header", "rawAuditKeyValues", "Object.entries(event || {})", "Object.entries(event?.metadata || {})", "labelAuditEvent", "auditAffectedMarkup", "subjectType", "subjectId", "workspaceId", "adminActorSubject", "params.set(\"limit\", \"50\")", "IntersectionObserver", "Load more", "Loading more…"], "excludes": ["<span role=\"columnheader\">Outcome</span>", "<small>${escapeText(event.adminActorRole", "Safe metadata", "ticketRef"] },
+        { "file": "lib/admin-contract.mjs", "contains": ["allowedAuditPrefixes", "allowedAuditMetadata", "deniedAuditPrefixes", "correlationId"] }
+      ]
+    }
+  ],
+  "excluded": [
+    {
+      "id": "EXC-001",
+      "summary": "Session revocation is not a console capability.",
+      "evidence": [
+        { "file": "lib/admin-route-policy.mjs", "excludes": ["sessions/revoke"] },
+        { "file": "public/app.js", "excludes": ["revokeSessions", "Revoke active sessions"] },
+        { "file": "docs/contracts/manifest.json", "excludes": ["sessions/revoke"] }
+      ]
+    },
+    {
+      "id": "EXC-002",
+      "summary": "User-account creation and access-recovery UI are not console capabilities.",
+      "evidence": [
+        { "file": "lib/admin-route-policy.mjs", "contains": ["createUserIfMissing: false", "The platform admin console cannot create user accounts"], "excludes": ["body.email"] },
+        { "file": "public/user-membership-actions.js", "contains": ["createUserIfMissing: false"], "excludes": ["email: user.email"] },
+        { "file": "public/app.js", "excludes": ["renderAccessRecovery", "Open recovery desk", "Access recovery"] }
+      ]
+    },
+    {
+      "id": "EXC-003",
+      "summary": "Suspend is not a role and membership deletion is not presented as suspension.",
+      "evidence": [
+        { "file": "lib/mock-admin-store.mjs", "contains": ["roleTemplateKeys: [\"owner\", \"admin\", \"member\", \"auditor\"]"] },
+        { "file": "public/user-membership-actions.js", "excludes": ["suspend", "Suspend"] }
+      ]
+    },
+    {
+      "id": "EXC-004",
+      "summary": "User detail is not a replacement page with a small Back to all users action.",
+      "evidence": [
+        { "file": "public/app.js", "excludes": ["Back to all users"] },
+        { "file": "public/index.html", "contains": ["id=\"user-panel\" role=\"dialog\""] }
+      ]
+    },
+    {
+      "id": "EXC-005",
+      "summary": "Removed privileged banners, category eyebrows, and registry counters stay absent.",
+      "evidence": [
+        { "file": "public/index.html", "excludes": ["Privileged governance", "No workspace data access", ">Prototype<", "class=\"eyebrow\""] },
+        { "file": "public/app.js", "excludes": ["Platform governance", "Account directory", "User registry"] }
+      ]
+    },
+    {
+      "id": "EXC-006",
+      "summary": "Current UI uses Workspace Access and Workspaces, not cross-workspace or Workspace Membership terminology.",
+      "evidence": [
+        { "file": "public/user-panel-view.js", "contains": ["Workspace Access"], "excludes": ["Workspace Membership", "Cross-workspace", "cross-workspace"] },
+        { "file": "PRODUCT.md", "excludes": ["Cross-workspace", "cross-workspace"] }
+      ]
+    },
+    {
+      "id": "EXC-007",
+      "summary": "Membership source and origin are not shown because they do not affect authorization.",
+      "evidence": [
+        { "file": "public/user-panel-view.js", "excludes": ["membership.source", "Membership origin", "Created with workspace", "Added in AcornOps", "Source ·"] },
+        { "file": "lib/admin-contract.mjs", "contains": ["function projectMembership"], "excludes": ["\"source\", \"createdAt\""] }
+      ]
+    },
+    {
+      "id": "EXC-008",
+      "summary": "The internal user ID is not displayed beneath the name in the directory table.",
+      "evidence": [
+        { "file": "test/ui-alignment.test.mjs", "contains": ["assert.doesNotMatch(app, /primary-cell[^\\n]+user\\.displayName[^\\n]+secondary-cell[^\\n]+user\\.id/)"] }
+      ]
+    },
+    {
+      "id": "EXC-009",
+      "summary": "Unverified is not rendered as an amber or orange bubble.",
+      "evidence": [
+        { "file": "public/styles.css", "excludes": ["--unverified-soft", "--unverified:", ".status.unverified { padding:"] }
+      ]
+    },
+    {
+      "id": "EXC-010",
+      "summary": "Role updates do not open a reason or ticket dialog.",
+      "evidence": [
+        { "file": "public/user-membership-actions.js", "contains": ["updateRole({ editor", "reason: `Platform admin changed workspace role"], "excludes": ["ticketRef"] }
+      ]
+    },
+    {
+      "id": "EXC-011",
+      "summary": "Role-update success copy does not mention internal audit implementation.",
+      "evidence": [
+        { "file": "public/user-membership-actions.js", "contains": ["Role successfully updated to ${titleCase(nextRole)}."], "excludes": ["recorded in Admin Audit"] }
+      ]
+    },
+    {
+      "id": "EXC-012",
+      "summary": "An Owner membership in one workspace does not block individual revocation of unrelated workspace access.",
+      "evidence": [
+        { "file": "public/user-membership-actions.js", "contains": ["const isOwner = editor.dataset.currentRole === \"owner\"", "submitDisabled: isOwner", "Other workspace access remains unchanged."] }
+      ]
+    },
+    {
+      "id": "EXC-013",
+      "summary": "Open dropdown chevrons remain grey rather than changing to orange.",
+      "evidence": [
+        { "file": "public/styles.css", "contains": [".select-trigger.open .select-chevron, .combobox-toggle.open .select-chevron { stroke: var(--text-muted)"] }
+      ]
+    },
+    {
+      "id": "EXC-014",
+      "summary": "Workspace suggestions and clear affordance do not use native datalist or browser clear controls.",
+      "evidence": [
+        { "file": "public/user-directory.js", "excludes": ["<datalist", "workspace-suggestions"] },
+        { "file": "public/styles.css", "contains": ["::-webkit-search-cancel-button { display: none", ".combobox-clear-icon"] }
+      ]
+    },
+    {
+      "id": "EXC-015",
+      "summary": "Workspace quota policies, usage rows, override controls, and the legacy quota route are excluded from this plan-based consumer.",
+      "evidence": [
+        { "file": "lib/admin-route-policy.mjs", "excludes": ["/quotas"] },
+        { "file": "public/workspace-panel-view.js", "excludes": ["Quota Usage", "Quota policy", "Adjust Quotas", "data-change-quotas"] },
+        { "file": "docs/contracts/manifest.json", "excludes": ["workspaceQuotaPatchFields", "/quotas"] }
+      ]
+    },
+    {
+      "id": "EXC-016",
+      "summary": "Workspace suspension and restoration confirmations exclude free-form reason and ticket-reference fields while retaining deterministic producer-required reasons.",
+      "evidence": [
+        { "file": "test/ui-alignment.test.mjs", "contains": ["assert.doesNotMatch(lifecycleFlow, /ticketRef|reasonFields/)", "assert.match(lifecycleFlow, /const verb = restoring \\? \"restored\" : \"suspended\"/)"] }
+      ]
+    },
+    {
+      "id": "EXC-017",
+      "summary": "Change Plan excludes free-form reason and ticket-reference fields while retaining a deterministic producer-required reason.",
+      "evidence": [
+        { "file": "test/ui-alignment.test.mjs", "contains": ["assert.doesNotMatch(planFlow, /ticketRef|reasonFields/)", "Platform admin changed workspace plan from"] }
+      ]
+    },
+    {
+      "id": "EXC-018",
+      "summary": "Consumer-orchestrated sequential all-workspace revocation is excluded until an atomic preview-and-mutation contract exists.",
+      "evidence": [
+        { "file": "public/user-panel-view.js", "excludes": ["data-revoke-all-access", "Revoke All Access"] },
+        { "file": "public/user-membership-actions.js", "excludes": ["confirmRevokeAll", "revocableEditors", "revoke all workspace access"] }
+      ]
+    }
+  ],
+  "blocked": [
+    {
+      "id": "BLOCK-001",
+      "summary": "Workspace retention countdown and purge remain blocked; suspension and restoration are now contract-backed.",
+      "evidence": [
+        { "file": "DESIGN.md", "contains": ["DEV-007", "Retention countdown and purge remain blocked"] },
+        { "file": "lib/admin-route-policy.mjs", "contains": ["/suspend", "/restore"], "excludes": ["/purge"] }
+      ]
+    },
+    {
+      "id": "BLOCK-002",
+      "summary": "Atomic ownership transfer awaits a dedicated producer contract; workspace-scoped member reads are now authoritative and paginated.",
+      "evidence": [
+        { "file": "DESIGN.md", "contains": ["DEV-006", "authoritative paginated workspace-member read", "atomic ownership-transfer contract"] }
+      ]
+    },
+    {
+      "id": "BLOCK-003",
+      "summary": "Reversible membership suspension awaits a dedicated suspend and restore contract.",
+      "evidence": [
+        { "file": "DESIGN.md", "contains": ["DEV-010", "Do not invent a `suspend` role"] }
+      ]
+    },
+    {
+      "id": "BLOCK-004",
+      "summary": "Atomic all-workspace offboarding awaits a server-side preview and mutation contract.",
+      "evidence": [
+        { "file": "DESIGN.md", "contains": ["DEV-011", "server-side impact-preview and atomic endpoint"] }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+.github/ISSUE_TEMPLATE/*.md whitespace=-blank-at-eol
+.github/PULL_REQUEST_TEMPLATE/*.md whitespace=-blank-at-eol
+.github/pull_request_template.md whitespace=-blank-at-eol

@@ -1,0 +1,123 @@
+@font-face {
+  font-family: Outfit;
+  src: url("/fonts/outfit-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: Outfit;
+  src: url("/fonts/outfit-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light dark;
+  font-family: Outfit, system-ui, sans-serif;
+  background: #f6f2eb;
+  color: #25221f;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.auth-error-card {
+  width: min(100%, 480px);
+  padding: 40px;
+  border: 1px solid #ded6ca;
+  border-radius: 18px;
+  background: #fffdf9;
+  box-shadow: 0 18px 48px rgb(56 45 32 / 10%);
+}
+
+.auth-error-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #aa5a3a;
+  color: #fff;
+  font-weight: 600;
+}
+
+.auth-error-eyebrow {
+  margin: 24px 0 8px;
+  color: #7b6e61;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-size: clamp(28px, 5vw, 38px);
+  line-height: 1.12;
+}
+
+p {
+  color: #625950;
+  line-height: 1.6;
+}
+
+.auth-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.auth-error-actions a {
+  padding: 10px 16px;
+  border-radius: 9px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-error-primary {
+  background: #aa5a3a;
+  color: #fff;
+}
+
+.auth-error-secondary {
+  border: 1px solid #d8cfc4;
+  color: inherit;
+}
+
+.auth-error-request {
+  margin: 28px 0 0;
+  font-size: 12px;
+}
+
+code {
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    background: #1d1b19;
+    color: #f3eee7;
+  }
+
+  .auth-error-card {
+    border-color: #49423b;
+    background: #292622;
+    box-shadow: none;
+  }
+
+  .auth-error-eyebrow,
+  p {
+    color: #bfb4a8;
+  }
+
+  .auth-error-secondary {
+    border-color: #5d554d;
+  }
+}
