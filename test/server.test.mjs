@@ -319,6 +319,45 @@ test("mock workspaces retain contract-backed filters and expose governance lifec
   });
 });
 
+test("mock platform settings support the versioned update and reset lifecycle", async () => {
+  await withServer({ mode: "mock" }, async (base) => {
+    const csrf = await fetch(`${base}/admin-console-api/auth/csrf`).then((response) => response.json());
+    assert.equal(csrf.csrfToken, "mock-admin-csrf");
+    const initial = await fetch(`${base}/admin-console-api/settings`).then((response) => response.json());
+    const discovery = initial.items.find((setting) => setting.key === "member_discovery");
+    assert.equal(discovery.value.mode, "exact_email");
+
+    const updatedResponse = await fetch(`${base}/admin-console-api/settings/member_discovery`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", "x-csrf-token": csrf.csrfToken },
+      body: JSON.stringify({
+        value: { mode: "directory" },
+        expectedVersion: discovery.version,
+        reason: "Enable trusted directory"
+      })
+    });
+    assert.equal(updatedResponse.status, 200);
+    const updated = await updatedResponse.json();
+    assert.equal(updated.value.mode, "directory");
+    assert.equal(updated.source, "runtime_override");
+    assert.equal(updated.version, discovery.version + 1);
+
+    const resetResponse = await fetch(`${base}/admin-console-api/settings/member_discovery`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json", "x-csrf-token": csrf.csrfToken },
+      body: JSON.stringify({
+        expectedVersion: updated.version,
+        reason: "Reset trusted directory"
+      })
+    });
+    assert.equal(resetResponse.status, 200);
+    const reset = await resetResponse.json();
+    assert.equal(reset.value.mode, "exact_email");
+    assert.equal(reset.source, "deployment_default");
+    assert.equal(reset.version, updated.version + 1);
+  });
+});
+
 test("mock workspace members use the authoritative paginated route", async () => {
   await withServer({ mode: "mock" }, async (base) => {
     const first = await fetch(`${base}/admin-console-api/workspaces/ws_atlas/members?limit=2`).then((response) => response.json());

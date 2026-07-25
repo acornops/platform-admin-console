@@ -4,7 +4,7 @@ import { ADMIN_ROUTE_DEFINITIONS, isGovernanceOnlyUpstreamPath, matchAdminRoute,
 import { ALLOWED_ADMIN_SCOPES, FORBIDDEN_ADMIN_SCOPES, projectAdminResponse, validateAdminIdentity } from "../lib/admin-contract.mjs";
 
 test("all runtime routes use the admin namespace and governance-only nouns", () => {
-  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 15);
+  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 18);
   for (const route of ADMIN_ROUTE_DEFINITIONS) {
     assert.equal(isGovernanceOnlyUpstreamPath(route.upstreamTemplate), true, route.upstreamTemplate);
     assert.ok(ALLOWED_ADMIN_SCOPES.includes(route.requiredScope), route.requiredScope);
@@ -53,6 +53,31 @@ test("projects workspace and audit responses to the confidentiality boundary", (
   assert.equal("userAgent" in audit.items[0], false);
 });
 
+test("projects only typed platform setting state", () => {
+  const route = matchAdminRoute("GET", "/settings");
+  const projected = projectAdminResponse(route, {
+    items: [{
+      key: "password_signup",
+      value: { enabled: false },
+      deploymentDefault: { enabled: false },
+      source: "deployment_default",
+      version: 0,
+      editable: true,
+      constraints: { allowedValues: [false, true], enablementBlockers: ["Email unavailable"], smtpPassword: "hidden" },
+      secret: "hidden"
+    }]
+  });
+  assert.deepEqual(projected.items[0], {
+    key: "password_signup",
+    value: { enabled: false },
+    deploymentDefault: { enabled: false },
+    source: "deployment_default",
+    version: 0,
+    editable: true,
+    constraints: { allowedValues: [false, true], enablementBlockers: ["Email unavailable"] }
+  });
+});
+
 test("requires narrow exact-name lifecycle bodies", () => {
   for (const action of ["suspend", "restore"]) {
     const route = matchAdminRoute("POST", `/workspaces/ws_atlas/${action}`);
@@ -78,6 +103,26 @@ test("narrows workspace access grants to existing users", () => {
     body: { userId: "usr_ivy", role: "member", createUserIfMissing: false, reason: "Approved access" }
   });
   assert.equal(sanitizedAdminBody(route, { email: "new@example.com", role: "member", createUserIfMissing: true, reason: "Create user" }).ok, false);
+});
+
+test("allows only fixed versioned platform setting mutations", () => {
+  const patch = matchAdminRoute("PATCH", "/settings/member_discovery");
+  assert.equal(patch.upstreamPath, "/admin/v1/system/settings/member_discovery");
+  assert.deepEqual(sanitizedAdminBody(patch, {
+    value: { mode: "exact_email" },
+    expectedVersion: 2,
+    reason: "Privacy policy update"
+  }), {
+    ok: true,
+    body: {
+      value: { mode: "exact_email" },
+      expectedVersion: 2,
+      reason: "Privacy policy update"
+    }
+  });
+  assert.equal(matchAdminRoute("PATCH", "/settings/arbitrary"), null);
+  assert.equal(sanitizedAdminBody(patch, { value: {}, expectedVersion: -1, reason: "Invalid" }).ok, false);
+  assert.equal(sanitizedAdminBody(patch, { value: {}, expectedVersion: 0, reason: "Valid", secret: "no" }).ok, false);
 });
 
 test("denies operational, tenant-audit, arbitrary, and wrong-method routes", () => {

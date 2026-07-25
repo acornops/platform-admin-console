@@ -65,6 +65,7 @@ A platform administrator works from a support or security request in a bright of
 - Motion is brief and removed when reduced motion is requested.
 - Disabled actions explain safeguards that currently prevent completion.
 - Desktop uses the management console's persistent surface sidebar; compact layouts use a modal navigation drawer with a minimal navigation header.
+- Platform Settings is one quiet divided ledger rather than a card dashboard. Member discovery, AI policy, and password signup each show their effective value and deployment source, with Save and Reset kept beside the setting heading. Deployment blockers remain inline, viewers see disabled controls, and auditors do not receive the route.
 
 ## Accessibility
 
@@ -84,6 +85,7 @@ The console follows these producer shapes directly:
 - Role options use the producer's `roleTemplateKeys`, and role mutations send `role` plus a system-generated `reason`; optional `ticketRef` is omitted for the direct panel interaction without adding consumer-defined role values.
 - Membership-role mutations send only `role`, `reason`, and optional `ticketRef`, matching the strict producer schema.
 - Member-create mutations use the producer endpoint but are narrowed to `userId`, `role`, `createUserIfMissing: false`, `reason`, and optional `ticketRef`; email-based resolution and account creation are rejected by the BFF before forwarding.
+- Platform-setting reads and writes are limited to `member_discovery`, `ai_policy`, and `password_signup`. Writes include `expectedVersion` and a deterministic reason; resets omit a value. The BFF projects typed effective values and deployment constraints without forwarding arbitrary configuration.
 - Member deletion preserves the producer's `204 No Content` response, and BFF-owned failures use the producer error envelope `{ error: { code, message, retryable } }`.
 - Admin Audit uses the runtime fields `adminTokenId`, `action`, `outcome`, `requestId`, `metadata`, and `occurredAt`. The producer OpenAPI and manifest were corrected to match this existing runtime behavior.
 - Admin Audit mirrors the workspace audit-log information architecture: Time,

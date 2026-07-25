@@ -10,6 +10,7 @@ import { cleanupMenuControls, enhanceSelect } from "./menu-controls.js";
 import { overviewMarkup } from "./overview-view.js";
 import { cleanupAuditPage, renderAuditPage } from "./audit-page.js";
 import { bindAdminAccountMenu } from "./account-menu.js";
+import { renderPlatformSettingsPage } from "./platform-settings-page.js";
 
 const main = document.querySelector("#main");
 const dialog = document.querySelector("#action-dialog");
@@ -28,6 +29,7 @@ const routes = [
   { test: /^\/workspaces\/([^/]+)$/, name: "workspaces", render: (match) => renderWorkspaces(match[1]) },
   { test: /^\/users$/, name: "users", render: () => renderUsers() },
   { test: /^\/users\/([^/]+)$/, name: "users", render: (match) => renderUsers(match[1]) },
+  { test: /^\/settings$/, name: "settings", render: () => renderPlatformSettingsPage({ main, api, pageHeader, canMutate: canMutate(), showToast, enhanceSelect, readableError }) },
   { test: /^\/audit$/, name: "audit", render: () => renderAuditPage({ main, api, pageHeader, readableError }) }
 ];
 document.addEventListener("click", (event) => {
@@ -73,13 +75,9 @@ dialogForm.addEventListener("submit", handleDialogSubmit);
 dialogCancel.addEventListener("click", () => dialog.close("cancel"));
 dialog.addEventListener("close", () => { state.dialogAction = null; });
 userPanelClose.addEventListener("click", requestCloseUserPanel);
-userPanelLayer.addEventListener("mousedown", (event) => {
-  if (event.target === userPanelLayer) requestCloseUserPanel();
-});
+userPanelLayer.addEventListener("mousedown", (event) => { if (event.target === userPanelLayer) requestCloseUserPanel(); });
 workspacePanelClose.addEventListener("click", requestCloseWorkspacePanel);
-workspacePanelLayer.addEventListener("mousedown", (event) => {
-  if (event.target === workspacePanelLayer) requestCloseWorkspacePanel();
-});
+workspacePanelLayer.addEventListener("mousedown", (event) => { if (event.target === workspacePanelLayer) requestCloseWorkspacePanel(); });
 await loadIdentity();
 await router();
 
@@ -116,6 +114,7 @@ async function loadIdentity() {
     document.querySelector('[data-route="overview"]').hidden = role === "platform-admin-auditor";
     document.querySelector('[data-route="workspaces"]').hidden = role === "platform-admin-auditor";
     document.querySelector('[data-route="users"]').hidden = role === "platform-admin-auditor";
+    document.querySelector('[data-route="settings"]').hidden = role === "platform-admin-auditor";
     if (role === "platform-admin-auditor" && location.pathname !== "/audit") history.replaceState({}, "", "/audit");
   } catch (error) {
     if (error.status === 401) { location.assign(`/admin-auth/oidc/login?return_to=${encodeURIComponent(location.pathname)}`); await new Promise(() => {}); }

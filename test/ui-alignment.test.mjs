@@ -25,7 +25,7 @@ const [html, app, auditPage, overviewView, userDirectory, userPanelView, members
 test("matches the management-console shell and icon vocabulary", () => {
   assert.match(html, /class="wordmark"><strong>acorn<\/strong><b>ops<\/b>/);
   assert.match(html, /<rect width="7" height="7" x="3" y="3" rx="1"\/><rect width="7" height="7" x="14" y="3" rx="1"\/><rect width="7" height="7" x="14" y="14" rx="1"\/><rect width="7" height="7" x="3" y="14" rx="1"\/>/);
-  assert.equal((html.match(/class="nav-icon"/g) || []).length, 4);
+  assert.equal((html.match(/class="nav-icon"/g) || []).length, 5);
   const workspaceIcon = '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>';
   assert.ok(html.includes(workspaceIcon));
   assert.ok(userDirectory.includes(workspaceIcon));

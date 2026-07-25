@@ -22,6 +22,6 @@ test("fails when a superseded user workflow is reintroduced", () => {
 
 test("fails when the runtime route catalog drifts from the accepted subset", () => {
   const extraRoute = { method: "POST", upstreamTemplate: "/admin/v1/users/:userId/sessions/revoke" };
-  const failures = validateRequirementsBaseline({ root, routeDefinitions: [...Array(15).fill({}), extraRoute] });
-  assert.ok(failures.some((failure) => failure.includes("Expected 15 admin routes, found 16")));
+  const failures = validateRequirementsBaseline({ root, routeDefinitions: [...Array(18).fill({}), extraRoute] });
+  assert.ok(failures.some((failure) => failure.includes("Expected 18 admin routes, found 19")));
 });

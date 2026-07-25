@@ -472,6 +472,36 @@ textarea { min-height: 88px; resize: vertical; }
 .panel-empty strong { display: block; font-size: 14px; }
 .panel-empty p { margin: 4px 0 0; color: var(--text-muted); font-size: 12px; }
 
+.settings-surface { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.settings-section { padding: 24px; }
+.settings-section + .settings-section { border-top: 1px solid var(--border); }
+.settings-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.settings-section-heading > div:first-child { min-width: 0; }
+.settings-section-heading h2 { margin: 0; font-size: 17px; line-height: 24px; }
+.settings-section-heading p { max-width: 66ch; margin: 5px 0 0; color: var(--text-muted); font-size: 13px; line-height: 20px; }
+.settings-title-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.settings-source { padding: 2px 7px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-strong); color: var(--text-muted); font-size: 10px; font-weight: 700; letter-spacing: .03em; line-height: 16px; text-transform: uppercase; }
+.settings-actions { display: flex; flex: 0 0 auto; gap: 8px; }
+.settings-section form { max-width: 900px; margin-top: 22px; }
+.settings-primary-field { max-width: 360px; }
+.settings-field-note { margin: 8px 0 0; color: var(--text-muted); font-size: 12px; line-height: 18px; }
+.settings-default-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.settings-fieldset { margin: 22px 0 0; padding: 0; border: 0; }
+.settings-fieldset legend { margin-bottom: 10px; font-size: 12px; font-weight: 700; line-height: 18px; }
+.provider-policy-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.provider-policy-group { min-width: 0; padding: 14px; }
+.provider-policy-group + .provider-policy-group { border-left: 1px solid var(--border); }
+.provider-policy-group > strong, .settings-choice-groups strong { display: block; margin-bottom: 7px; font-size: 12px; line-height: 18px; }
+.settings-check { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 8px; min-height: 30px; padding: 4px 0; color: var(--text); font-size: 12px; line-height: 20px; cursor: pointer; }
+.settings-check input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--brand-orange-strong); }
+.settings-check input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.settings-check:has(input:disabled) { color: var(--text-muted); cursor: not-allowed; }
+.settings-choice-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 12px; }
+.settings-policy-note { display: grid; gap: 2px; max-width: 620px; margin-top: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-strong); color: var(--text-muted); font-size: 12px; line-height: 18px; }
+.settings-policy-note strong { color: var(--text); }
+.settings-policy-note.warning { border-color: var(--admin-border); background: var(--admin-accent-soft); }
+.settings-error { min-height: 18px; margin: 10px 0 0; }
+
 dialog { width: min(520px, calc(100vw - 28px)); max-height: calc(100vh - 36px); padding: 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 dialog::backdrop { background: rgba(48, 45, 41, .48); }
 dialog form { padding: 24px; }
@@ -585,6 +615,12 @@ dialog form { padding: 24px; }
   .compact.select-control .select-trigger { height: 44px; }
   .membership-revoke { width: 44px; height: 44px; }
   .panel-definition-grid { grid-template-columns: 1fr; }
+  .settings-section { padding: 20px 16px; }
+  .settings-section-heading { flex-direction: column; gap: 14px; }
+  .settings-actions, .settings-actions .button { flex: 1 1 0; }
+  .settings-actions { width: 100%; }
+  .settings-default-grid, .provider-policy-grid, .settings-choice-groups { grid-template-columns: 1fr; }
+  .provider-policy-group + .provider-policy-group { border-top: 1px solid var(--border); border-left: 0; }
 }
 
 @media (max-width: 520px) {

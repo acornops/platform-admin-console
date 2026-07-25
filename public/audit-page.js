@@ -1,6 +1,9 @@
 import { enhanceSelect } from "./menu-controls.js";
 
 const AUDIT_ACTIONS = [
+  ["admin.system.setting.read", "Viewed platform settings"],
+  ["admin.system.setting.update", "Updated platform setting"],
+  ["admin.system.setting.reset", "Reset platform setting"],
   ["admin.workspace.detail.read", "Viewed workspace details"],
   ["admin.workspace.plan.update", "Changed workspace plan"],
   ["admin.workspace.suspend", "Modified workspace status"],

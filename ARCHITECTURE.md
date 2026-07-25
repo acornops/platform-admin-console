@@ -15,6 +15,8 @@ Platform admin browser
 
 The browser never receives the upstream admin token. It holds only a host-only, secure, HTTP-only opaque admin session cookie issued by the control plane plus a signed CSRF token. The BFF has no generic proxy and cannot construct arbitrary upstream paths. Governance operations are declared with method, browser route, upstream route, and risk classification in `lib/admin-route-policy.mjs`. Human-authentication traffic is a separate exact method/path/query allowlist in `server.mjs`; it preserves OIDC redirects and cookie headers but never attaches the BFF workload credential.
 
+Durable platform settings use the same fixed boundary: browser `/admin-console-api/settings` routes map only to `/admin/v1/system/settings`. The control plane owns deployment-policy resolution, optimistic versions, persistence, and audit attribution; this console only projects and edits the three declared setting keys.
+
 ## Runtime modes
 
 - `mock` (default): deterministic in-memory governance data for local prototyping.

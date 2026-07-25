@@ -280,6 +280,10 @@ async function handleApi(context) {
   setHeaders(response, { "cache-control": "no-store" });
   const browserPath = url.pathname.slice(API_PREFIX.length) || "/";
   if (browserPath === "/auth/csrf" && request.method === "GET") {
+    if (mode === "mock") {
+      sendJson(response, 200, { csrfToken: "mock-admin-csrf" });
+      return;
+    }
     if (mode !== "control-plane" || !upstreamBaseUrl || !upstreamToken) {
       sendJson(response, 503, apiError("ADMIN_UPSTREAM_NOT_CONFIGURED", "The admin control plane is not configured"));
       return;

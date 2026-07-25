@@ -77,8 +77,8 @@ includes(productIndex, "current-requirements.md", "Product spec current requirem
 includes(productIndex, "requirements-baseline.json", "Product spec executable baseline link");
 for (const needle of ["## Authority And Change Protocol", "historical evidence, not current requirements", "## Required Baseline", "## Superseded And Excluded Behavior", "## Contract-Blocked Capabilities", "npm run requirements:check"]) includes(currentRequirements, needle, "Current requirements governance");
 expect(requirementsBaseline.authority === "docs/product-specs/current-requirements.md", "Executable requirements authority must be repo-local");
-expect(requirementsBaseline.expectedRuntime?.adminRouteCount === 15, "Executable requirements must lock the 15-route consumer subset");
-expect(requirementsBaseline.expectedRuntime?.allowedScopeCount === 7, "Executable requirements must lock the 7-scope consumer subset");
+expect(requirementsBaseline.expectedRuntime?.adminRouteCount === 18, "Executable requirements must lock the 18-route consumer subset");
+expect(requirementsBaseline.expectedRuntime?.allowedScopeCount === 8, "Executable requirements must lock the 8-scope consumer subset");
 expect(requirementsBaseline.required?.length >= 10, "Executable requirements need substantive required behavior coverage");
 expect(requirementsBaseline.excluded?.length >= 10, "Executable requirements need substantive superseded-behavior coverage");
 expect(requirementsBaseline.blocked?.length >= 4, "Executable requirements need blocked-capability coverage");

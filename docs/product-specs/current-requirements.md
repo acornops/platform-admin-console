@@ -36,6 +36,12 @@ The executable baseline may use current source, durable docs, contracts, and foc
 | `REQ-UX-001` | Reuse the management console's shell, typography, control structure, and interaction vocabulary. Retain the shield-labelled Platform Admin identity, the concise `Admin · AcornOps` browser title, and a noticeable but restrained cream-clay sidebar tint. The bottom administrator identity is a management-aligned account-menu trigger showing the authenticated human's display name or email and current platform role. Its popover repeats the identity, offers System, Light, and Dark appearance preferences, and provides the explicit logout action. Account settings remain absent because platform-admin identity and credentials are IdP-managed and the console has no local account mutation contract. The former sidebar tenant-boundary card is removed; Overview's `Governance data only` banner carries the lock icon and confidentiality reminder. |
 | `REQ-CTL-001` | Dropdowns follow the management console's trigger, menu, option, checkmark, and scrollbar design. Open chevrons rotate but remain grey; the workspace filter uses a themed clear control. |
 
+### Platform settings
+
+| ID | Requirement |
+| --- | --- |
+| `REQ-SET-001` | Platform Settings provides governance-safe read access to member discovery, AI policy, and password-signup state. The full `platform-admin` role may save or reset versioned runtime overrides through fixed `/admin/v1/system/settings` contracts; viewers remain read-only and auditors have no settings route. The page shows the effective value, deployment boundary, source, policy blockers, and concise mutation feedback without exposing secrets or accepting arbitrary setting keys. |
+
 ### Overview
 
 | ID | Requirement |
@@ -110,4 +116,4 @@ These are not current features. They stay disabled or absent until the producer 
 
 ## Current Contract Subset
 
-The accepted consumer subset is 15 routes and 7 least-privilege scopes, mirrored in `docs/contracts/manifest.json` and enforced by `lib/admin-route-policy.mjs` and `lib/admin-contract.mjs`. Adding an endpoint, query, scope, or payload field is a contract change, not a UI convenience; update producer and consumer artifacts together and record any necessary deviation in `DESIGN.md`.
+The accepted consumer subset is 18 routes and 8 least-privilege scopes, mirrored in `docs/contracts/manifest.json` and enforced by `lib/admin-route-policy.mjs` and `lib/admin-contract.mjs`. Adding an endpoint, query, scope, or payload field is a contract change, not a UI convenience; update producer and consumer artifacts together and record any necessary deviation in `DESIGN.md`.

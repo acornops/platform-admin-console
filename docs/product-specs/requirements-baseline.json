@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "lastReviewed": "2026-07-21",
+  "lastReviewed": "2026-07-25",
   "authority": "docs/product-specs/current-requirements.md",
   "expectedRuntime": {
-    "adminRouteCount": 15,
-    "allowedScopeCount": 7
+    "adminRouteCount": 18,
+    "allowedScopeCount": 8
   },
   "normativeSources": [
     "PRODUCT.md",
@@ -14,6 +14,16 @@
     "docs/contracts/manifest.json"
   ],
   "required": [
+    {
+      "id": "REQ-SET-001",
+      "summary": "Platform settings are fixed, privacy-projected, versioned, deployment-bounded, and writable only by the full platform-admin role.",
+      "evidence": [
+        { "file": "public/index.html", "contains": ["href=\"/settings\"", "data-route=\"settings\"", ">Settings</span>"] },
+        { "file": "public/platform-settings-page.js", "contains": ["Member discovery", "AI policy", "Password signup", "expectedVersion", "Runtime override", "Deployment default"], "excludes": ["SMTP_PASSWORD", "OIDC_CLIENT_SECRET"] },
+        { "file": "lib/admin-route-policy.mjs", "contains": ["/admin/v1/system/settings", "member_discovery|ai_policy|password_signup", "admin:system:write"] },
+        { "file": "lib/admin-contract.mjs", "contains": ["projectPlatformSetting", "projectPlatformSettingConstraints"], "excludes": ["SMTP_PASSWORD", "OIDC_CLIENT_SECRET"] }
+      ]
+    },
     {
       "id": "REQ-BND-001",
       "summary": "The browser uses only same-origin fixed governance and authentication boundaries, and the BFF maps only explicit /admin/v1 routes.",

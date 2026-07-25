@@ -27,7 +27,10 @@ expect(manifest.version === 1, "Manifest version mismatch");
 expect(Boolean(contract), "Missing control-plane counterpart contract");
 for (const heading of ["# Platform Admin Console Contracts", "## Source Of Truth", "## Full Platform Matrix", "## Platform Dependency Summary", "## Shared Invariants", "## Control-Plane Boundary Notes", "## Change Checklist"]) includes(docs, heading, "Contract documentation");
 
-const runtimePaths = ADMIN_ROUTE_DEFINITIONS.map((route) => `${route.method} ${route.upstreamTemplate.replaceAll(":workspaceId", "{workspaceId}").replaceAll(":userId", "{userId}")}`);
+const runtimePaths = ADMIN_ROUTE_DEFINITIONS.map((route) => `${route.method} ${route.upstreamTemplate
+  .replaceAll(":workspaceId", "{workspaceId}")
+  .replaceAll(":userId", "{userId}")
+  .replaceAll(":settingKey", "{settingKey}")}`);
 expect(stable(runtimePaths) === stable(contract.platformAdminPaths), "Runtime route order or contents differ from mirrored platformAdminPaths");
 expect(stable(ALLOWED_ADMIN_SCOPES) === stable(contract.requiredScopes), "Runtime allowed scopes differ from mirrored requiredScopes");
 expect(stable(FORBIDDEN_ADMIN_SCOPES) === stable(contract.forbiddenScopes), "Runtime forbidden scopes differ from mirrored forbiddenScopes");
