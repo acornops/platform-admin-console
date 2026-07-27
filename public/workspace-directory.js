@@ -89,9 +89,11 @@ export async function renderWorkspaceDirectory({ main, selectedWorkspaceId, api,
 export function workspaceRows(items, selectedWorkspaceId = null) {
   return items.map((workspace) => {
     const suspended = workspace.lifecycleStatus === "suspended";
-    return `<tr data-workspace-id="${escapeAttr(workspace.id)}" tabindex="0" aria-selected="${String(workspace.id === selectedWorkspaceId)}"><td><span class="primary-cell">${escapeText(workspace.name)}</span><span class="secondary-cell">${escapeText(workspace.id)}</span></td><td><span class="mono">${escapeText(workspace.createdBy)}</span></td><td data-workspace-member-count>${Number(workspace.memberCount).toLocaleString()}</td><td><span class="status workspace-directory-status ${suspended ? "suspended" : "active"}">${suspended ? "Suspended" : "Active"}</span></td><td>${escapeText(formatDate(workspace.createdAt))}</td></tr>`;
+    return `<tr data-workspace-id="${escapeAttr(workspace.id)}" tabindex="0" aria-selected="${String(workspace.id === selectedWorkspaceId)}"><td><span class="primary-cell">${escapeText(workspace.name)}</span><span class="secondary-cell">${escapeText(workspace.id)}</span></td><td>${escapeText(workspaceCreatorName(workspace))}</td><td data-workspace-member-count>${Number(workspace.memberCount).toLocaleString()}</td><td><span class="status workspace-directory-status ${suspended ? "suspended" : "active"}">${suspended ? "Suspended" : "Active"}</span></td><td>${escapeText(formatDate(workspace.createdAt))}</td></tr>`;
   }).join("");
 }
+
+export function workspaceCreatorName(workspace = {}) { return workspace.createdByDisplayName || workspace.createdByEmail || workspace.createdBy || "Unknown user"; }
 
 function formatDate(value) { return new Intl.DateTimeFormat("en", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }
 function escapeText(value) { return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character]); }

@@ -92,7 +92,9 @@ a { color: inherit; }
 .wordmark b { color: var(--brand-orange-bright); font-weight: 700; }
 .console-identity { display: flex; align-items: center; gap: 5px; color: var(--admin-accent-strong); font-size: 12px; font-weight: 600; line-height: 14px; }
 .console-identity svg, .mobile-context-icon { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.nav-list { display: grid; gap: 4px; min-height: 0; padding: 0 12px; overflow-y: auto; }
+.nav-list { display: grid; align-content: start; gap: 20px; min-height: 0; padding: 0 12px; overflow-y: auto; }
+.nav-section { display: grid; gap: 4px; }
+.nav-section-title { display: block; padding: 0 12px 5px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; line-height: 16px; text-transform: uppercase; }
 .nav-list a { position: relative; display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: var(--radius-sm); color: var(--text-muted); font-size: 14px; font-weight: 500; text-decoration: none; transition: color 160ms ease, background-color 160ms ease; }
 .nav-list a:hover { background: var(--admin-accent-soft); color: var(--text); }
 .nav-list a[aria-current="page"] { background: var(--admin-accent-soft); color: var(--text); font-weight: 600; }

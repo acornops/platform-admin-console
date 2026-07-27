@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { auditActorName, auditPresetRange, buildAuditQuery, rawAuditKeyValues } from "../public/audit-page.js";
+import { auditActorName, auditAffectedMarkup, auditAffectedText, auditPresetRange, buildAuditQuery, rawAuditKeyValues } from "../public/audit-page.js";
 
 test("builds a complete allowlisted admin audit query and omits empty filters", () => {
   const query = buildAuditQuery({
@@ -54,4 +54,13 @@ test("shows one readable human administrator value in the actor column", () => {
   assert.equal(auditActorName({ adminActorEmail: "avery@example.test", adminActorSubject: "admin-42" }), "avery@example.test");
   assert.equal(auditActorName({ adminActorSubject: "admin-42" }), "admin-42");
   assert.equal(auditActorName({}), "Unknown administrator");
+});
+
+test("shows workspace names in audit objects while retaining ID fallback", () => {
+  const named = { workspaceId: "ws_atlas", workspaceName: "Atlas Research", subjectType: "user", subjectId: "usr_ivy" };
+  assert.match(auditAffectedMarkup(named), /<strong>Atlas Research<\/strong>/);
+  assert.doesNotMatch(auditAffectedMarkup(named), />ws_atlas</);
+  assert.equal(auditAffectedText(named), "Workspace Atlas Research · User usr_ivy");
+  assert.match(auditAffectedMarkup({ workspaceId: "ws_atlas" }), /<strong>ws_atlas<\/strong>/);
+  assert.equal(auditAffectedText({ workspaceId: "ws_atlas" }), "Workspace ws_atlas");
 });

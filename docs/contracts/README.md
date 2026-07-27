@@ -35,6 +35,7 @@ The console has one runtime service dependency: `control-plane`. It does not cal
 - `lib/admin-contract.mjs` projects successful responses before browser delivery.
 - Workspace operational summaries and operational admin-audit actions are removed even if the producer returns them.
 - Admin audit attribution identifies the authenticated human from immutable OIDC issuer and subject fields, with display name and email snapshots for readability. The BFF workload token remains separate credential evidence.
+- Workspace creator and admin-audit object labels are optional producer fields. The BFF projects them explicitly; the browser prefers the readable label and falls back to the immutable creator or workspace ID.
 - The mock store emits producer-shaped DTOs before the same projection is applied.
 - All accepted deviations are tracked in `DESIGN.md`.
 

@@ -18,7 +18,7 @@
       "id": "REQ-SET-001",
       "summary": "Platform settings are fixed, privacy-projected, versioned, deployment-bounded, and writable only by the full platform-admin role.",
       "evidence": [
-        { "file": "public/index.html", "contains": ["href=\"/settings\"", "data-route=\"settings\"", ">Settings</span>"] },
+        { "file": "public/index.html", "contains": ["href=\"/settings\"", "data-route=\"settings\"", ">Platform Settings</span>"] },
         { "file": "public/platform-settings-page.js", "contains": ["Member discovery", "AI policy", "Password signup", "expectedVersion", "Runtime override", "Deployment default"], "excludes": ["SMTP_PASSWORD", "OIDC_CLIENT_SECRET"] },
         { "file": "lib/admin-route-policy.mjs", "contains": ["/admin/v1/system/settings", "member_discovery|ai_policy|password_signup", "admin:system:write"] },
         { "file": "lib/admin-contract.mjs", "contains": ["projectPlatformSetting", "projectPlatformSettingConstraints"], "excludes": ["SMTP_PASSWORD", "OIDC_CLIENT_SECRET"] }
@@ -63,9 +63,9 @@
     },
     {
       "id": "REQ-UX-001",
-      "summary": "The console reuses the management-console shell and clickable account menu with local System, Light, and Dark appearance preferences plus logout, without inventing local account settings.",
+      "summary": "The console reuses the management-console shell, keeps Overview standalone, groups resources and settings under Admin Management, places Admin Audit under Governance, and provides a clickable account menu with local appearance preferences plus logout.",
       "evidence": [
-        { "file": "public/index.html", "contains": ["<title>Admin · AcornOps</title>", "data-console=\"platform-admin\"", "console-identity", "Platform Admin", "admin-account-bar", "admin-account-trigger", "admin-account-menu", "theme-menu-trigger", "admin-logout"], "excludes": ["<title>Platform Admin Console · AcornOps</title>", "Tenant data is out of scope", "Account Settings"] },
+        { "file": "public/index.html", "contains": ["<title>Admin · AcornOps</title>", "data-console=\"platform-admin\"", "console-identity", "Platform Admin", ">Overview</span>", "admin-management-navigation-title", ">Admin Management</span>", ">Workspaces</span>", ">Users</span>", ">Platform Settings</span>", "governance-navigation-title", ">Governance</span>", ">Admin Audit</span>", "admin-account-bar", "admin-account-trigger", "admin-account-menu", "theme-menu-trigger", "admin-logout"], "excludes": ["<title>Platform Admin Console · AcornOps</title>", "Tenant data is out of scope", "Account Settings"] },
         { "file": "public/account-menu.js", "contains": ["app_theme", "prefers-color-scheme: dark", "aria-checked", "Logging out…"], "excludes": ["password", "account settings", "Account Settings"] },
         { "file": "public/styles.css", "contains": ["--admin-sidebar: oklch(0.972 0.014 55)", "html[data-resolved-theme=\"dark\"]", "grid-template-columns: 256px minmax(0, 1fr)", "font-family: \"Outfit\"", ".admin-account-bar", ".admin-account-menu", "border-top: 1px solid var(--admin-border)"] },
         { "file": "public/overview-view.js", "contains": ["overview-boundary", "Governance data only.", "<svg viewBox=\"0 0 24 24\"", "<rect width=\"18\" height=\"11\""] },
@@ -165,12 +165,13 @@
     },
     {
       "id": "REQ-WSP-002",
-      "summary": "Workspace details show neutral plan-derived Kubernetes and VM connection limits, reserving red for exceptions, with the plan action attached to the current plan value.",
+      "summary": "Workspace directories and details show readable creator identities plus neutral plan-derived Kubernetes and VM connection limits, reserving red for exceptions.",
       "evidence": [
         { "file": "public/index.html", "contains": ["id=\"workspace-panel\" role=\"dialog\" aria-modal=\"true\"", "aria-label=\"Close workspace details\""] },
         { "file": "public/app.js", "contains": ["openWorkspacePanel", "history.pushState({ workspacePanel: true }", "trapFocus(event, workspacePanel)", "loadSystemConfig()", "config.planCatalog?.plans"] },
-        { "file": "public/workspace-panel-view.js", "contains": [">Workspace Details<", "capacity-badge", "workspace-plan-value", "data-change-plan>Change Plan", "Kubernetes clusters", "Virtual machines", "Current plan"], "excludes": [">Quota Usage<", "quota-usage-badge", ">Manage Workspace<", "data-change-quotas", "Quota policy", "Adjust Quotas", "workspace logs", "commands"] },
-        { "file": "test/workspace-panel-view.test.mjs", "contains": ["markup.indexOf(\"Kubernetes clusters\") < markup.indexOf(\"Virtual machines\")", "markup.indexOf(\"Virtual machines\") < markup.indexOf(\"Current plan\")", "aria-label=\"4 of 10 connected\"", "workspace-plan-value"] },
+        { "file": "public/workspace-directory.js", "contains": ["workspaceCreatorName", "createdByDisplayName", "createdByEmail", "workspace.createdBy"] },
+        { "file": "public/workspace-panel-view.js", "contains": [">Workspace Details<", "workspaceCreatorName", "createdByDisplayName", "createdByEmail", "capacity-badge", "workspace-plan-value", "data-change-plan>Change Plan", "Kubernetes clusters", "Virtual machines", "Current plan"], "excludes": [">Quota Usage<", "quota-usage-badge", ">Manage Workspace<", "data-change-quotas", "Quota policy", "Adjust Quotas", "workspace logs", "commands"] },
+        { "file": "test/workspace-panel-view.test.mjs", "contains": ["Maya Chen", "usr_test", "markup.indexOf(\"Kubernetes clusters\") < markup.indexOf(\"Virtual machines\")", "markup.indexOf(\"Virtual machines\") < markup.indexOf(\"Current plan\")", "aria-label=\"4 of 10 connected\"", "workspace-plan-value"] },
         { "file": "test/ui-alignment.test.mjs", "contains": ["background: var\\(--surface-strong\\); color: var\\(--text\\)", "assert.doesNotMatch(styles, /\\.capacity-badge\\.within-limit"] }
       ]
     },
@@ -208,7 +209,7 @@
       "id": "REQ-AUD-001",
       "summary": "Admin Audit shows one human-readable administrator value in the Actor column while retaining complete projected evidence in protected details, governance-safe filters, correlation IDs, and cursor pagination.",
       "evidence": [
-        { "file": "public/audit-page.js", "contains": ["Governance Events", "Privacy-filtered", "audit-columns", "Time", "Event", "Actor", "Object", "Details", "All outcomes", "Today", "Last 24h", "Past 7d", "Past 30d", "Custom range", "auditActorName", "auditDetailContent", "Governance", "Correlation ID", "Event data", "Copy event data", "eyeIcon", "audit-reference-header", "rawAuditKeyValues", "Object.entries(event || {})", "Object.entries(event?.metadata || {})", "labelAuditEvent", "auditAffectedMarkup", "subjectType", "subjectId", "workspaceId", "adminActorSubject", "params.set(\"limit\", \"50\")", "IntersectionObserver", "Load more", "Loading more…"], "excludes": ["<span role=\"columnheader\">Outcome</span>", "<small>${escapeText(event.adminActorRole", "Safe metadata", "ticketRef"] },
+        { "file": "public/audit-page.js", "contains": ["Governance Events", "Privacy-filtered", "audit-columns", "Time", "Event", "Actor", "Object", "Details", "All outcomes", "Today", "Last 24h", "Past 7d", "Past 30d", "Custom range", "auditActorName", "auditDetailContent", "Governance", "Correlation ID", "Event data", "Copy event data", "eyeIcon", "audit-reference-header", "rawAuditKeyValues", "Object.entries(event || {})", "Object.entries(event?.metadata || {})", "labelAuditEvent", "auditAffectedMarkup", "event.workspaceName || event.workspaceId", "subjectType", "subjectId", "workspaceId", "adminActorSubject", "params.set(\"limit\", \"50\")", "IntersectionObserver", "Load more", "Loading more…"], "excludes": ["<span role=\"columnheader\">Outcome</span>", "<small>${escapeText(event.adminActorRole", "Safe metadata", "ticketRef"] },
         { "file": "lib/admin-contract.mjs", "contains": ["allowedAuditPrefixes", "allowedAuditMetadata", "deniedAuditPrefixes", "correlationId"] }
       ]
     }

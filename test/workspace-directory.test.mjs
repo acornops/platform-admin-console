@@ -17,11 +17,18 @@ const baseWorkspace = {
 };
 
 test("workspace rows show lifecycle posture without plan or quota policy", () => {
-  const rows = workspaceRows([{ ...baseWorkspace, memberCount: 4 }], "ws_test");
+  const rows = workspaceRows([{ ...baseWorkspace, createdByDisplayName: "Maya Chen", createdByEmail: "maya@example.test", memberCount: 4 }], "ws_test");
   assert.match(rows, /data-workspace-id="ws_test"/);
   assert.match(rows, /aria-selected="true"/);
   assert.match(rows, />4<\/td>/);
   assert.match(rows, /workspace-directory-status active">Active<\/span>/);
+  assert.match(rows, />Maya Chen<\/td>/);
+  assert.doesNotMatch(rows, />usr_test<\/td>/);
   assert.match(workspaceRows([{ ...baseWorkspace, memberCount: 4, lifecycleStatus: "suspended" }]), /workspace-directory-status suspended">Suspended<\/span>/);
   assert.doesNotMatch(rows, /Team|Within limits|Over limit|quota-status/);
+});
+
+test("workspace rows fall back from creator display name to email and immutable ID", () => {
+  assert.match(workspaceRows([{ ...baseWorkspace, createdByEmail: "maya@example.test", memberCount: 4 }]), />maya@example\.test<\/td>/);
+  assert.match(workspaceRows([{ ...baseWorkspace, memberCount: 4 }]), />usr_test<\/td>/);
 });

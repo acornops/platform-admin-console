@@ -26,6 +26,12 @@ test("matches the management-console shell and icon vocabulary", () => {
   assert.match(html, /class="wordmark"><strong>acorn<\/strong><b>ops<\/b>/);
   assert.match(html, /<rect width="7" height="7" x="3" y="3" rx="1"\/><rect width="7" height="7" x="14" y="3" rx="1"\/><rect width="7" height="7" x="14" y="14" rx="1"\/><rect width="7" height="7" x="3" y="14" rx="1"\/>/);
   assert.equal((html.match(/class="nav-icon"/g) || []).length, 5);
+  assert.match(html, /<nav class="nav-list">\s*<a href="\/" data-route="overview">[\s\S]+?<span>Overview<\/span><\/a>\s*<div class="nav-section" role="group" aria-labelledby="admin-management-navigation-title">/);
+  assert.match(html, /class="nav-section" role="group" aria-labelledby="admin-management-navigation-title"[\s\S]+?id="admin-management-navigation-title">Admin Management<\/span>[\s\S]+?<span>Workspaces<\/span>[\s\S]+?<span>Users<\/span>[\s\S]+?<span>Platform Settings<\/span>/);
+  assert.match(html, /class="nav-section" role="group" aria-labelledby="governance-navigation-title"[\s\S]+?id="governance-navigation-title">Governance<\/span>[\s\S]+?<span>Admin Audit<\/span>/);
+  assert.doesNotMatch(html, /aria-labelledby="management-navigation-title"|id="management-navigation-title"|aria-labelledby="platform-navigation-title"|id="platform-navigation-title"|<span>Management<\/span>|<span>Platform<\/span>|<span>Settings<\/span>/);
+  assert.match(styles, /\.nav-list \{ display: grid; align-content: start; gap: 20px;/);
+  assert.match(styles, /\.nav-section-title \{[^}]+font-size: 11px;[^}]+font-weight: 700;[^}]+letter-spacing: \.08em;[^}]+text-transform: uppercase;/);
   const workspaceIcon = '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>';
   assert.ok(html.includes(workspaceIcon));
   assert.ok(userDirectory.includes(workspaceIcon));
