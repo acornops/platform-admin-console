@@ -23,10 +23,16 @@
         </div>
         <nav class="nav-list">
           <a href="/" data-route="overview"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg><span>Overview</span></a>
-          <a href="/workspaces" data-route="workspaces"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg><span>Workspaces</span></a>
-          <a href="/users" data-route="users"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Users</span></a>
-          <a href="/settings" data-route="settings"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg><span>Settings</span></a>
-          <a href="/audit" data-route="audit"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/><path d="m9 12 2 2 4-4"/></svg><span>Admin Audit</span></a>
+          <div class="nav-section" role="group" aria-labelledby="admin-management-navigation-title">
+            <span class="nav-section-title" id="admin-management-navigation-title">Admin Management</span>
+            <a href="/workspaces" data-route="workspaces"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg><span>Workspaces</span></a>
+            <a href="/users" data-route="users"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Users</span></a>
+            <a href="/settings" data-route="settings"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg><span>Platform Settings</span></a>
+          </div>
+          <div class="nav-section" role="group" aria-labelledby="governance-navigation-title">
+            <span class="nav-section-title" id="governance-navigation-title">Governance</span>
+            <a href="/audit" data-route="audit"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/><path d="m9 12 2 2 4-4"/></svg><span>Admin Audit</span></a>
+          </div>
         </nav>
         <div class="admin-account-bar" aria-label="Signed-in administrator identity">
           <button class="admin-account-trigger" id="admin-account-trigger" type="button" aria-label="Open account menu" aria-controls="admin-account-menu" aria-expanded="false">

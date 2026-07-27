@@ -8,7 +8,7 @@ export function workspacePanelMarkup(workspace, plans = []) {
         ${capacityDefinition("Kubernetes clusters", workspace.clusterCount, plan?.quotas?.kubernetesClusters)}
         ${capacityDefinition("Virtual machines", workspace.virtualMachineCount, plan?.quotas?.virtualMachines)}
         ${planDefinition(workspace.plan.name)}
-        ${definition("Created by", workspace.createdBy, "mono")}
+        ${definition("Created by", workspaceCreatorName(workspace))}
         ${definition("Created", formatDate(workspace.createdAt))}
       </dl>
     </section>
@@ -29,6 +29,8 @@ export function workspacePanelMarkup(workspace, plans = []) {
       <button class="button ${suspended ? "secondary" : "danger-secondary"} full-action compact" type="button" data-workspace-lifecycle="${suspended ? "restore" : "suspend"}">${suspended ? "Restore Workspace" : "Suspend Workspace"}</button>
     </section>`;
 }
+
+export function workspaceCreatorName(workspace = {}) { return workspace.createdByDisplayName || workspace.createdByEmail || workspace.createdBy || "Unknown user"; }
 
 export function workspaceMemberTableMarkup(members, workspace) {
   if (!members.length) return `<div class="workspace-members-empty"><strong>No workspace access</strong><p>Choose Manage Access to grant an existing user access.</p></div>`;

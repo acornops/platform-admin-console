@@ -65,12 +65,13 @@
       "workspacePlanPatchFields": ["planKey", "reason", "ticketRef?"],
       "workspaceSuspendFields": ["workspaceName", "reason", "ticketRef?"],
       "workspaceRestoreFields": ["workspaceName?", "reason", "ticketRef?"],
-      "adminWorkspaceResponseFields": ["clusterCount", "virtualMachineCount", "memberCount", "lifecycleStatus=active|suspended", "suspendedAt?"],
+      "adminWorkspaceResponseFields": ["createdByDisplayName?", "createdByEmail?", "clusterCount", "virtualMachineCount", "memberCount", "lifecycleStatus=active|suspended", "suspendedAt?"],
       "memberCreateFields": ["userId", "role", "createUserIfMissing=false", "reason", "ticketRef?"],
       "memberRolePatchFields": ["role", "reason", "ticketRef?"],
       "memberDeleteFields": ["reason", "replacementOwnerUserId?", "ticketRef?"],
       "responseCachePolicy": "All /admin/v1 responses set Cache-Control: no-store",
       "adminAuditActorFields": ["adminActorIssuer", "adminActorSubject", "adminActorEmail?", "adminActorDisplayName?", "adminActorRole", "authenticationTime"],
+      "adminAuditObjectFields": ["workspaceId?", "workspaceName?", "subjectType?", "subjectId?"],
       "privacyProjection": "BFF removes operational workspace fields, filters admin audit to governance action families, and removes target/run identifiers before browser delivery"
     }
   }

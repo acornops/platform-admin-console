@@ -16,7 +16,7 @@ const workspace = {
 const plans = [{ key: "team", name: "Team", quotas: { members: 15, kubernetesClusters: 10, virtualMachines: 5 } }];
 
 test("workspace details show plan-derived governance counts without quota controls", () => {
-  const markup = workspacePanelMarkup(workspace, plans);
+  const markup = workspacePanelMarkup({ ...workspace, createdByDisplayName: "Maya Chen", createdByEmail: "maya@example.test" }, plans);
   assert.match(markup, /aria-label="4 of 10 connected">4 \/ 10<\/span>/);
   assert.match(markup, /aria-label="2 of 5 connected">2 \/ 5<\/span>/);
   assert.match(markup, /capacity-badge within-limit/);
@@ -25,10 +25,16 @@ test("workspace details show plan-derived governance counts without quota contro
   assert.match(markup, /data-manage-workspace-access aria-pressed="false">Manage Access/);
   assert.match(markup, /data-add-workspace-access data-tooltip="Add workspace access" aria-label="Add workspace access" hidden/);
   assert.match(markup, /<dd class="workspace-plan-value"><span>Team<\/span><button[^>]+data-change-plan>Change Plan<\/button><\/dd>/);
+  assert.match(markup, /<dt>Created by<\/dt><dd class="">Maya Chen<\/dd>/);
+  assert.doesNotMatch(markup, /<dt>Created by<\/dt><dd[^>]*>usr_test<\/dd>/);
   assert.ok(markup.indexOf("Kubernetes clusters") < markup.indexOf("Virtual machines"));
   assert.ok(markup.indexOf("Virtual machines") < markup.indexOf("Current plan"));
   assert.ok(markup.indexOf("Current plan") < markup.indexOf("data-change-plan"));
   assert.doesNotMatch(markup, /Quota Usage|Quota policy|Adjust Quotas|Manage Workspace/);
+});
+
+test("workspace details fall back to the immutable creator ID", () => {
+  assert.match(workspacePanelMarkup(workspace), /<dt>Created by<\/dt><dd class="">usr_test<\/dd>/);
 });
 
 test("workspace lifecycle renders suspension and restoration actions", () => {

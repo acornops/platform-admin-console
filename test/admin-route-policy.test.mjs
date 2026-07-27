@@ -33,7 +33,7 @@ test("rejects broad and operational credentials", () => {
 test("projects workspace and audit responses to the confidentiality boundary", () => {
   const workspaceRoute = matchAdminRoute("GET", "/workspaces/ws_atlas");
   const workspace = projectAdminResponse(workspaceRoute, {
-    id: "ws_atlas", name: "Atlas", plan: { key: "team", name: "Team" }, createdBy: "usr_1", createdAt: "2026-01-01T00:00:00Z", clusterCount: 2, virtualMachineCount: 1, memberCount: 3, lifecycleStatus: "active",
+    id: "ws_atlas", name: "Atlas", plan: { key: "team", name: "Team" }, createdBy: "usr_1", createdByDisplayName: "Maya Chen", createdByEmail: "maya@example.test", createdAt: "2026-01-01T00:00:00Z", clusterCount: 2, virtualMachineCount: 1, memberCount: 3, lifecycleStatus: "active",
     quota: { members: { used: 3, limit: 10 }, kubernetesClusters: { used: 2, limit: 5 }, virtualMachines: { used: 1, limit: 5 } },
     quotaOverrides: { members: null, kubernetesClusters: null, virtualMachines: null }, recentRunSummary: { running: 4 }, latestWorkspaceAuditAt: "secret"
   });
@@ -41,16 +41,19 @@ test("projects workspace and audit responses to the confidentiality boundary", (
   assert.equal("latestWorkspaceAuditAt" in workspace, false);
   assert.equal("quota" in workspace, false);
   assert.equal("quotaOverrides" in workspace, false);
+  assert.equal(workspace.createdByDisplayName, "Maya Chen");
+  assert.equal(workspace.createdByEmail, "maya@example.test");
 
   const auditRoute = matchAdminRoute("GET", "/admin-audit-events");
   const audit = projectAdminResponse(auditRoute, { items: [
-    { id: "1", action: "admin.workspace.plan.update", outcome: "success", workspaceId: "ws", requestId: "req", sourceIpHash: "hidden", userAgent: "hidden", metadata: { ticketRef: "AO-1", correlationId: "corr-1", secretPayload: "hidden" }, occurredAt: "2026-01-01T00:00:00Z" },
+    { id: "1", action: "admin.workspace.plan.update", outcome: "success", workspaceId: "ws", workspaceName: "Atlas", requestId: "req", sourceIpHash: "hidden", userAgent: "hidden", metadata: { ticketRef: "AO-1", correlationId: "corr-1", secretPayload: "hidden" }, occurredAt: "2026-01-01T00:00:00Z" },
     { id: "2", action: "admin.run.cancel", outcome: "success", targetId: "target", requestId: "req2", metadata: {}, occurredAt: "2026-01-01T00:00:00Z" }
   ] });
   assert.equal(audit.items.length, 1);
   assert.deepEqual(audit.items[0].metadata, { correlationId: "corr-1" });
   assert.equal("sourceIpHash" in audit.items[0], false);
   assert.equal("userAgent" in audit.items[0], false);
+  assert.equal(audit.items[0].workspaceName, "Atlas");
 });
 
 test("projects only typed platform setting state", () => {
