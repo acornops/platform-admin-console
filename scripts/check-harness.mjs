@@ -86,7 +86,7 @@ for (const needle of ["name: platform-admin-change", "Use for every product, UI,
 for (const needle of ["display_name: \"Platform Admin Change\"", "short_description:", "$platform-admin-change"]) includes(localChangeSkillInterface, needle, "Local skill interface");
 
 expect(packageJson.name === "@acornops/platform-admin-console", "package name must identify the platform admin console");
-expect(packageJson.version === "0.0.1-experimental.2", "release version must remain explicit");
+expect(packageJson.version === "0.0.1-experimental.3", "release version must remain explicit");
 for (const script of ["lint", "test", "test:coverage", "contracts:check", "requirements:check", "harness:check", "build", "smoke:routes", "validate", "validate:ci"]) expect(Boolean(packageJson.scripts?.[script]), `Missing package script ${script}`);
 for (const threshold of ["--test-coverage-lines=80", "--test-coverage-branches=65", "--test-coverage-functions=80"]) includes(packageJson.scripts["test:coverage"], threshold, "Coverage threshold");
 includes(packageJson.scripts["test:coverage"], "--test-coverage-exclude=public/**", "Coverage runtime scope");
