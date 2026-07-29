@@ -60,24 +60,24 @@ test("projects only typed platform setting state", () => {
   const route = matchAdminRoute("GET", "/settings");
   const projected = projectAdminResponse(route, {
     items: [{
-      key: "password_signup",
-      value: { enabled: false },
-      deploymentDefault: { enabled: false },
+      key: "user_sign_in_methods",
+      value: { methods: ["oidc", "unexpected", "oidc"] },
+      deploymentDefault: { methods: ["password", "oidc"] },
       source: "deployment_default",
       version: 0,
       editable: true,
-      constraints: { allowedValues: [false, true], enablementBlockers: ["Email unavailable"], smtpPassword: "hidden" },
+      constraints: { allowedMethods: ["oidc", "unexpected", "oidc"], methodBlockers: { password: ["Password disabled"], oidc: [], internal: ["hidden"] }, smtpPassword: "hidden" },
       secret: "hidden"
     }]
   });
   assert.deepEqual(projected.items[0], {
-    key: "password_signup",
-    value: { enabled: false },
-    deploymentDefault: { enabled: false },
+    key: "user_sign_in_methods",
+    value: { methods: ["oidc"] },
+    deploymentDefault: { methods: ["password", "oidc"] },
     source: "deployment_default",
     version: 0,
     editable: true,
-    constraints: { allowedValues: [false, true], enablementBlockers: ["Email unavailable"] }
+    constraints: { allowedMethods: ["oidc"], methodBlockers: { password: ["Password disabled"], oidc: [] } }
   });
 });
 
@@ -126,6 +126,17 @@ test("allows only fixed versioned platform setting mutations", () => {
   assert.equal(matchAdminRoute("PATCH", "/settings/arbitrary"), null);
   assert.equal(sanitizedAdminBody(patch, { value: {}, expectedVersion: -1, reason: "Invalid" }).ok, false);
   assert.equal(sanitizedAdminBody(patch, { value: {}, expectedVersion: 0, reason: "Valid", secret: "no" }).ok, false);
+  const signInMethods = matchAdminRoute("PATCH", "/settings/user_sign_in_methods");
+  assert.deepEqual(sanitizedAdminBody(signInMethods, {
+    value: { methods: ["password", "oidc"] },
+    expectedVersion: 2,
+    reason: "Allow both workspace sign-in methods"
+  }), {
+    ok: true,
+    body: { value: { methods: ["password", "oidc"] }, expectedVersion: 2, reason: "Allow both workspace sign-in methods" }
+  });
+  assert.equal(sanitizedAdminBody(signInMethods, { value: { methods: [] }, expectedVersion: 2, reason: "No sign-in methods" }).ok, false);
+  assert.equal(sanitizedAdminBody(signInMethods, { value: { methods: ["password", "password"] }, expectedVersion: 2, reason: "Duplicate sign-in methods" }).ok, false);
 });
 
 test("allows only write-only fixed provider default mutations", () => {

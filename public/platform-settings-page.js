@@ -3,8 +3,8 @@ const PROVIDER_LABELS = { openai: "OpenAI", anthropic: "Anthropic", gemini: "Gem
 const SETTINGS_CATEGORIES = ["workspace", "ai"];
 let activeSettingsCategory = "workspace";
 const DISCOVERY_LABELS = {
-  disabled: "Disabled",
-  exact_email: "Exact email",
+  disabled: "By Invites Only",
+  exact_email: "Exact Email",
   directory: "Directory"
 };
 
@@ -31,7 +31,7 @@ export async function renderPlatformSettingsPage({
     ? readableError(providerDefaultsResult.reason)
     : "";
   main.innerHTML = `${pageHeader(
-    "Platform settings",
+    "Platform Settings",
     "Manage approved runtime policy within deployment-defined boundaries."
   )}${settingsMarkup(settings, canMutate, providerDefaults, activeSettingsCategory, providerDefaultsError)}`;
   main.querySelectorAll("select").forEach((select) => enhanceSelect(select));
@@ -53,7 +53,7 @@ export async function renderPlatformSettingsPage({
 export function settingsMarkup(settings, canMutate, providerDefaults = [], activeCategory = "workspace", providerDefaultsError = "") {
   const memberDiscovery = settings.get("member_discovery");
   const aiPolicy = settings.get("ai_policy");
-  const passwordSignup = settings.get("password_signup");
+  const userSignInMethods = settings.get("user_sign_in_methods");
   const selectedCategory = SETTINGS_CATEGORIES.includes(activeCategory) ? activeCategory : "workspace";
   return `<div class="settings-surface management-settings-layout">
     <div class="settings-tabs" role="tablist" aria-label="Platform setting categories">
@@ -72,11 +72,11 @@ export function settingsMarkup(settings, canMutate, providerDefaults = [], activ
     </div>
     <div id="settings-panel-workspace" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-workspace" data-settings-panel="workspace" ${selectedCategory === "workspace" ? "" : "hidden"}>
       ${memberDiscoveryMarkup(memberDiscovery, canMutate)}
-      ${passwordSignupMarkup(passwordSignup, canMutate)}
+      ${userSignInMethodsMarkup(userSignInMethods, canMutate)}
     </div>
     <div id="settings-panel-ai" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-ai" data-settings-panel="ai" ${selectedCategory === "ai" ? "" : "hidden"}>
-      ${aiPolicyMarkup(aiPolicy, canMutate)}
       ${llmProviderDefaultsMarkup(providerDefaults, canMutate, providerDefaultsError)}
+      ${aiPolicyMarkup(aiPolicy, canMutate)}
     </div>
   </div>`;
 }
@@ -141,7 +141,7 @@ function llmProviderDefaultsMarkup(providerDefaults, canMutate, loadError = "") 
     return `<section class="settings-section llm-provider-defaults">
       <div class="settings-section-heading">
         <div>
-          <div class="settings-title-line"><h2>Default LLM keys</h2><span class="settings-source">Write-only</span></div>
+          <div class="settings-title-line"><h2>Default LLM Keys</h2><span class="settings-source">Write-only</span></div>
           <p>Used by every workspace unless that workspace saves its own provider key.</p>
         </div>
       </div>
@@ -156,7 +156,7 @@ function llmProviderDefaultsMarkup(providerDefaults, canMutate, loadError = "") 
   return `<section class="settings-section llm-provider-defaults">
     <div class="settings-section-heading">
       <div>
-        <div class="settings-title-line"><h2>Default LLM keys</h2><span class="settings-source">Write-only</span></div>
+        <div class="settings-title-line"><h2>Default LLM Keys</h2><span class="settings-source">Write-only</span></div>
         <p>Used by every workspace unless that workspace saves its own provider key.</p>
       </div>
     </div>
@@ -168,16 +168,16 @@ function llmProviderDefaultsMarkup(providerDefaults, canMutate, loadError = "") 
             <strong>${PROVIDER_LABELS[provider]}</strong>
             <span class="provider-default-status${status.configured ? " configured" : ""}">${status.configured ? "Configured" : "Not configured"}</span>
           </div>
-          <p class="settings-field-note">${status.enabled ? "Available for workspace fallback." : "Disabled by deployment policy."}</p>
+          ${status.enabled ? "" : '<p class="settings-field-note">Disabled by deployment policy.</p>'}
           <div class="field provider-default-field">
-            <label for="provider-default-${provider}">${status.configured ? "Rotate API key" : "API key"}</label>
+            <label for="provider-default-${provider}">${status.configured ? "Rotate API key" : "Add API key"}</label>
             <input class="input provider-default-input" id="provider-default-${provider}" name="apiKey" type="password" autocomplete="new-password" placeholder="Paste ${PROVIDER_LABELS[provider]} key" ${!canMutate || !status.enabled ? "disabled" : ""}>
           </div>
           <div class="provider-default-actions">
             ${status.configured
-              ? `<button class="button secondary provider-key-action" type="submit" ${!canMutate || !status.enabled ? "disabled" : ""}>${checkCircleIcon()}<span>Rotate key</span></button>
+              ? `<button class="button secondary provider-key-action" type="submit" disabled>${checkCircleIcon()}<span>Rotate key</span></button>
                 <button class="button danger provider-key-action" type="button" data-delete-provider-default ${!canMutate ? "disabled" : ""}>${trashIcon()}<span>Delete key</span></button>`
-              : `<button class="button secondary provider-key-action" type="submit" ${!canMutate || !status.enabled ? "disabled" : ""}>${checkCircleIcon()}<span>Save key</span></button>`}
+              : `<button class="button secondary provider-key-action" type="submit" disabled>${checkCircleIcon()}<span>Save key</span></button>`}
           </div>
           ${!canMutate ? '<p class="settings-field-note">Your platform role has read-only access.</p>' : ""}
           <p class="form-error settings-error" role="alert"></p>
@@ -188,12 +188,12 @@ function llmProviderDefaultsMarkup(providerDefaults, canMutate, loadError = "") 
 }
 
 function memberDiscoveryMarkup(setting, canMutate) {
-  if (!setting) return unavailableSettingMarkup("Member discovery");
+  if (!setting) return unavailableSettingMarkup("Member Discovery");
   const allowedModes = setting.constraints?.allowedModes || [];
   return settingSection({
     setting,
-    title: "Member discovery",
-    description: "Controls how workspace owners find existing AcornOps users.",
+    title: "Member Discovery",
+    description: "Controls how workspace owners add people to their workspace.",
     canMutate,
     fields: `<div class="field settings-primary-field">
       <label for="member-discovery-mode">Discovery mode</label>
@@ -206,7 +206,7 @@ function memberDiscoveryMarkup(setting, canMutate) {
 }
 
 function aiPolicyMarkup(setting, canMutate) {
-  if (!setting) return unavailableSettingMarkup("AI policy");
+  if (!setting) return unavailableSettingMarkup("AI Policy");
   const value = setting.value;
   const ceiling = setting.constraints || {};
   const providerModels = ceiling.providerModels || {};
@@ -214,7 +214,7 @@ function aiPolicyMarkup(setting, canMutate) {
   const disabled = fieldDisabled(setting, canMutate);
   return settingSection({
     setting,
-    title: "AI policy",
+    title: "AI Policy",
     description: "Limits workspace provider, model, and reasoning choices.",
     canMutate,
     className: "ai-policy-setting",
@@ -276,24 +276,33 @@ function aiPolicyMarkup(setting, canMutate) {
   });
 }
 
-function passwordSignupMarkup(setting, canMutate) {
-  if (!setting) return unavailableSettingMarkup("Password signup");
-  const allowedValues = setting.constraints?.allowedValues || [];
-  const blockers = setting.constraints?.enablementBlockers || [];
-  const canEnable = !blockers.length;
-  const values = allowedValues.filter((value) => value === false || canEnable);
+function userSignInMethodsMarkup(setting, canMutate) {
+  if (!setting) return unavailableSettingMarkup("User Sign-In Methods");
+  const allowedMethods = setting.constraints?.allowedMethods || [];
+  const blockers = setting.constraints?.methodBlockers || {};
+  const methods = ["password", "oidc"];
+  const disabled = fieldDisabled(setting, canMutate);
   return settingSection({
     setting,
-    title: "Password signup",
-    description: "Controls new self-service password accounts. Existing sign-in is unaffected.",
+    title: "User Sign-In Methods",
+    description: "Choose how workspace users can sign in. Select at least one method.",
     canMutate,
-    fields: `<div class="field settings-primary-field">
-      <label for="password-signup-enabled">Self-service signup</label>
-      <select id="password-signup-enabled" name="enabled" ${fieldDisabled(setting, canMutate)}>
-        ${values.map((enabled) => `<option value="${String(enabled)}" ${setting.value.enabled === enabled ? "selected" : ""}>${enabled ? "Enabled" : "Disabled"}</option>`).join("")}
-      </select>
-    </div>
-    ${blockers.length ? `<div class="settings-policy-note" role="note"><strong>Enablement unavailable</strong><span>${escapeText(blockers[0])}</span></div>` : '<p class="settings-field-note">Email verification remains governed by deployment policy.</p>'}`
+    fields: `<fieldset class="settings-fieldset user-sign-in-methods">
+      <legend>Allowed sign-in methods</legend>
+      <div class="settings-sign-in-methods">
+        ${methods.map((method) => {
+          const methodBlockers = blockers[method] || [];
+          const methodDisabled = disabled || !allowedMethods.includes(method);
+          const description = method === "password"
+            ? "Lets users sign in with a password. New users are prompted to create one the first time they sign in."
+            : "Redirects users to the configured OpenID Connect identity provider to sign in.";
+          return `<label class="settings-method-choice ${methodDisabled ? "is-disabled" : ""}">
+            <span class="settings-method-control"><input type="checkbox" name="methods" value="${method}" ${setting.value.methods?.includes(method) ? "checked" : ""} ${methodDisabled ? "disabled" : ""}><span><strong>${method === "password" ? "Password" : "OIDC"}</strong><small>${escapeText(description)}</small></span></span>
+            ${methodBlockers.length ? `<small class="settings-method-blocker">${escapeText(methodBlockers[0])}</small>` : ""}
+          </label>`;
+        }).join("")}
+      </div>
+    </fieldset>`
   });
 }
 
@@ -323,24 +332,41 @@ function settingSection({ setting, title, description, fields, canMutate, classN
 
 function bindSettingForms({ main, api, canMutate, showToast, readableError, rerender }) {
   main.querySelectorAll("[data-setting-form]").forEach((form) => {
-    form.addEventListener("change", () => {
-      const section = form.closest("[data-setting-key]");
-      const saveButton = section?.querySelector("[data-save-setting]");
-      if (canMutate && saveButton && [...form.elements].some((field) => !field.disabled)) {
+    const section = form.closest("[data-setting-key]");
+    const key = section?.dataset.settingKey;
+    const saveButton = section?.querySelector("[data-save-setting]");
+    const hasEditableField = [...form.elements].some((field) => !field.disabled);
+    let initialValue;
+    try {
+      initialValue = key ? settingValue(key, new FormData(form), form) : undefined;
+    } catch {
+      initialValue = undefined;
+    }
+    const syncSaveButton = () => {
+      if (!canMutate || !saveButton || !hasEditableField) return;
+      try {
+        const currentValue = settingValue(key, new FormData(form), form);
+        saveButton.disabled = initialValue === undefined || settingValuesMatch(currentValue, initialValue);
+      } catch {
         saveButton.disabled = false;
       }
+    };
+    form.addEventListener("change", (event) => {
+      if (event.target.matches('input[name="methods"]') && !form.querySelector('input[name="methods"]:checked')) {
+        event.target.checked = true;
+      }
+      syncSaveButton();
     });
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const section = form.closest("[data-setting-key]");
       if (!canMutate || !section) return;
-      const key = section.dataset.settingKey;
       const error = section.querySelector(".settings-error");
       const buttons = section.querySelectorAll("button");
       const disabledStates = [...buttons].map((button) => button.disabled);
       error.textContent = "";
       try {
         const value = settingValue(key, new FormData(form), form);
+        if (initialValue !== undefined && settingValuesMatch(value, initialValue)) return;
         buttons.forEach((button) => { button.disabled = true; });
         await api(`/settings/${encodeURIComponent(key)}`, {
           method: "PATCH",
@@ -405,10 +431,16 @@ function bindProviderDefaultForms({ main, api, canMutate, showToast, readableErr
   main.querySelectorAll("[data-provider-default-form]").forEach((form) => {
     const provider = form.dataset.provider;
     const error = form.querySelector(".settings-error");
+    const input = form.elements.apiKey;
+    const saveButton = form.querySelector('button[type="submit"]');
+    const syncSaveButton = () => {
+      if (saveButton) saveButton.disabled = !canMutate || input.disabled || !input.value.trim();
+    };
+    input.addEventListener("input", syncSaveButton);
+    syncSaveButton();
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!canMutate) return;
-      const input = form.elements.apiKey;
       const apiKey = input.value.trim();
       if (!apiKey) {
         error.textContent = "Enter a provider API key.";
@@ -431,7 +463,10 @@ function bindProviderDefaultForms({ main, api, canMutate, showToast, readableErr
       } catch (requestError) {
         input.value = "";
         error.textContent = readableError(requestError);
-        buttons.forEach((button) => { button.disabled = false; });
+        buttons.forEach((button) => {
+          if (button !== saveButton) button.disabled = false;
+        });
+        syncSaveButton();
       }
     });
 
@@ -459,7 +494,10 @@ function bindProviderDefaultForms({ main, api, canMutate, showToast, readableErr
         error.textContent = readableError(requestError);
         deleteButton.dataset.confirm = "false";
         deleteButton.innerHTML = `${trashIcon()}<span>Delete key</span>`;
-        buttons.forEach((button) => { button.disabled = false; });
+        buttons.forEach((button) => {
+          if (button !== saveButton) button.disabled = false;
+        });
+        syncSaveButton();
       }
     });
   });
@@ -467,7 +505,11 @@ function bindProviderDefaultForms({ main, api, canMutate, showToast, readableErr
 
 export function settingValue(key, data, form) {
   if (key === "member_discovery") return { mode: String(data.get("mode")) };
-  if (key === "password_signup") return { enabled: data.get("enabled") === "true" };
+  if (key === "user_sign_in_methods") {
+    const methods = data.getAll("methods").map(String);
+    if (!methods.length) throw new Error("Select at least one sign-in method.");
+    return { methods };
+  }
   const providerModels = Object.fromEntries(PROVIDERS.map((provider) => [
     provider,
     data.getAll(`model:${provider}`).map(String)
@@ -495,6 +537,20 @@ export function settingValue(key, data, form) {
   };
 }
 
+export function settingValuesMatch(left, right) {
+  return JSON.stringify(normalizeSettingValue(left)) === JSON.stringify(normalizeSettingValue(right));
+}
+
+function normalizeSettingValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(normalizeSettingValue).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, normalizeSettingValue(value[key])]));
+  }
+  return value;
+}
+
 function checkbox({ name, value, label, checked, disabled }) {
   return `<label class="settings-check">
     <input type="checkbox" name="${escapeAttr(name)}" value="${escapeAttr(value)}" ${checked ? "checked" : ""} ${disabled}>
@@ -513,16 +569,16 @@ function sourceLabel(source) {
 }
 
 function discoveryDescription(mode) {
-  if (mode === "directory") return "Workspace member managers can search the trusted user directory.";
-  if (mode === "exact_email") return "Existing users are revealed only after an exact email match.";
-  return "Workspace member managers create invitation links without user discovery.";
+  if (mode === "directory") return "Workspace owners can search the user directory and add an existing user directly to the workspace. Access is granted as soon as they add the user.";
+  if (mode === "exact_email") return "Workspace owners can add an existing user by entering their exact email address. Access is granted as soon as they add the user.";
+  return "Workspace owners can only send invitation links. The invited person is added after they accept the invitation.";
 }
 
 function settingTitle(key) {
   return {
-    member_discovery: "Member discovery",
-    ai_policy: "AI policy",
-    password_signup: "Password signup"
+    member_discovery: "Member Discovery",
+    ai_policy: "AI Policy",
+    user_sign_in_methods: "User Sign-In Methods"
   }[key] || "Setting";
 }
 

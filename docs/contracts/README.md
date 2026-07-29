@@ -30,6 +30,10 @@ The console has one runtime service dependency: `control-plane`. It does not cal
 - Platform-default LLM key status and replacement use only the fixed
   `/admin/v1/system/llm-provider-defaults` routes. Keys are write-only; the
   browser receives only provider, configured, enabled, and source status.
+- Platform User Sign-In Methods uses the fixed `/admin/v1/system/settings/user_sign_in_methods`
+  setting. The BFF accepts and projects only `{ methods: ["password"|"oidc", ...] }`,
+  requires at least one unique method, and projects only `allowedMethods` plus
+  per-method deployment blockers.
 
 ## Control-Plane Boundary Notes
 

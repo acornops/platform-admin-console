@@ -355,6 +355,19 @@ test("mock platform settings support the versioned update and reset lifecycle", 
     assert.equal(reset.value.mode, "exact_email");
     assert.equal(reset.source, "deployment_default");
     assert.equal(reset.version, updated.version + 1);
+
+    const signInMethods = initial.items.find((setting) => setting.key === "user_sign_in_methods");
+    const signInResponse = await fetch(`${base}/admin-console-api/settings/user_sign_in_methods`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", "x-csrf-token": csrf.csrfToken },
+      body: JSON.stringify({
+        value: { methods: ["oidc"] },
+        expectedVersion: signInMethods.version,
+        reason: "Require OIDC for workspace users"
+      })
+    });
+    assert.equal(signInResponse.status, 200);
+    assert.deepEqual((await signInResponse.json()).value, { methods: ["oidc"] });
   });
 });
 

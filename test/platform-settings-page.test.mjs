@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { settingValue, settingsMarkup } from "../public/platform-settings-page.js";
+import { settingValue, settingValuesMatch, settingsMarkup } from "../public/platform-settings-page.js";
 
 function fixture() {
   const ai = {
@@ -19,7 +20,7 @@ function fixture() {
       source: "deployment_default",
       version: 0,
       editable: true,
-      constraints: { allowedModes: ["disabled", "exact_email"] }
+      constraints: { allowedModes: ["disabled", "exact_email", "directory"] }
     }],
     ["ai_policy", {
       key: "ai_policy",
@@ -36,16 +37,19 @@ function fixture() {
         reasoningEfforts: ai.reasoningEfforts
       }
     }],
-    ["password_signup", {
-      key: "password_signup",
-      value: { enabled: false },
-      deploymentDefault: { enabled: false },
+    ["user_sign_in_methods", {
+      key: "user_sign_in_methods",
+      value: { methods: ["oidc"] },
+      deploymentDefault: { methods: ["password", "oidc"] },
       source: "runtime_override_constrained",
-      overrideValue: { enabled: true },
+      overrideValue: { methods: ["oidc"] },
       version: 1,
       editable: true,
-      constraints: { allowedValues: [false, true], enablementBlockers: ["Email delivery is disabled."] },
-      warning: "Email delivery is disabled."
+      constraints: {
+        allowedMethods: ["oidc"],
+        methodBlockers: { password: ["Password sign-in is disabled by deployment policy."], oidc: [] }
+      },
+      warning: "Password sign-in is disabled by deployment policy."
     }]
   ]);
 }
@@ -56,10 +60,21 @@ test("renders bounded settings and write-only provider defaults with safety cont
     { provider: "anthropic", configured: false, enabled: true, source: "none" },
     { provider: "gemini", configured: false, enabled: false, source: "none" }
   ]);
-  assert.match(markup, /Member discovery/);
-  assert.match(markup, /AI policy/);
-  assert.match(markup, /Password signup/);
-  assert.match(markup, /Default LLM keys/);
+  assert.match(markup, /Member Discovery/);
+  assert.match(markup, /Controls how workspace owners add people to their workspace/);
+  assert.match(markup, /By Invites Only/);
+  assert.match(markup, /Exact Email/);
+  assert.match(markup, /Access is granted as soon as they add the user/);
+  assert.match(markup, /AI Policy/);
+  assert.match(markup, /User Sign-In Methods/);
+  assert.match(markup, /Choose how workspace users can sign in. Select at least one method/);
+  assert.doesNotMatch(markup, /data-sign-in-methods-note|Deployment-disabled methods cannot be selected/);
+  assert.match(markup, /New users are prompted to create one the first time they sign in/);
+  assert.match(markup, /configured OpenID Connect identity provider/);
+  assert.match(markup, /Password sign-in is disabled by deployment policy/);
+  assert.match(markup, /name="methods" value="password"[^>]+disabled/);
+  assert.match(markup, /name="methods" value="oidc"[^>]+checked/);
+  assert.match(markup, /Default LLM Keys/);
   assert.match(markup, /Used by every workspace unless that workspace saves its own provider key/);
   assert.match(markup, /type="password"/);
   assert.match(markup, /OpenAI[\s\S]+Configured/);
@@ -69,15 +84,15 @@ test("renders bounded settings and write-only provider defaults with safety cont
   assert.match(markup, /provider-default-field/);
   assert.match(markup, /input provider-default-input/);
   assert.match(markup, /Rotate API key/);
+  assert.match(markup, /Add API key/);
   assert.match(markup, /Rotate key[\s\S]+Delete key/);
   assert.match(markup, /class="button secondary provider-key-action"[^>]*>[\s\S]+<span>Save key<\/span>/);
   assert.match(markup, /provider-key-action/);
-  assert.doesNotMatch(markup, /provider-default-summary|provider-default-editor|settings-status-success|Delete default|Replace key/);
+  assert.doesNotMatch(markup, /provider-default-summary|provider-default-editor|settings-status-success|Delete default|Replace key|Available for workspace fallback/);
   assert.match(markup, /Gemini[\s\S]+Disabled by deployment policy/);
   assert.match(markup, /Deployment default/);
   assert.match(markup, /Runtime override/);
   assert.match(markup, /Policy constrained/);
-  assert.match(markup, /Enablement unavailable/);
   assert.match(markup, /data-save-setting disabled/);
   assert.match(markup, /role="tablist" aria-label="Platform setting categories"/);
   assert.match(markup, /settings-surface management-settings-layout/);
@@ -87,14 +102,28 @@ test("renders bounded settings and write-only provider defaults with safety cont
   assert.doesNotMatch(markup, /data-settings-tab="members"/);
   const workspacePanel = markup.indexOf('data-settings-panel="workspace"');
   const aiPanel = markup.indexOf('data-settings-panel="ai"');
-  assert.ok(workspacePanel < markup.indexOf("Member discovery"));
-  assert.ok(markup.indexOf("Member discovery") < markup.indexOf("Password signup"));
-  assert.ok(markup.indexOf("Password signup") < aiPanel);
-  assert.ok(aiPanel < markup.indexOf("AI policy"));
-  assert.ok(markup.indexOf("AI policy") < markup.indexOf("Default LLM keys"));
+  assert.ok(workspacePanel < markup.indexOf("Member Discovery"));
+  assert.ok(markup.indexOf("Member Discovery") < markup.indexOf("User Sign-In Methods"));
+  assert.ok(markup.indexOf("User Sign-In Methods") < aiPanel);
+  assert.ok(aiPanel < markup.indexOf("Default LLM Keys"));
+  assert.ok(markup.indexOf("Default LLM Keys") < markup.indexOf("AI Policy"));
   assert.doesNotMatch(markup, /directory">Directory/);
   assert.doesNotMatch(markup, /SMTP_PASSWORD|OIDC_CLIENT_SECRET|openai_api_key/);
   assert.match(markup, /M12 8V4H8/);
+});
+
+test("explains how each member-discovery mode adds users to a workspace", () => {
+  const expectations = {
+    directory: "Workspace owners can search the user directory and add an existing user directly to the workspace. Access is granted as soon as they add the user.",
+    exact_email: "Workspace owners can add an existing user by entering their exact email address. Access is granted as soon as they add the user.",
+    disabled: "Workspace owners can only send invitation links. The invited person is added after they accept the invitation."
+  };
+
+  Object.entries(expectations).forEach(([mode, description]) => {
+    const settings = fixture();
+    settings.get("member_discovery").value = { mode };
+    assert.match(settingsMarkup(settings, true), new RegExp(description));
+  });
 });
 
 test("renders AI as the selected category without exposing a Members tab", () => {
@@ -105,6 +134,13 @@ test("renders AI as the selected category without exposing a Members tab", () =>
   assert.doesNotMatch(markup, /data-settings-tab="members"/);
 });
 
+test("keeps the hidden Workspace panel out of the AI tab layout", async () => {
+  const styles = await readFile(new URL("../public/styles.css", import.meta.url), "utf8");
+  assert.match(styles, /#settings-panel-workspace:not\(\[hidden\]\) \{ display: grid; gap: 40px; \}/);
+  assert.doesNotMatch(styles, /#settings-panel-workspace \{ display: grid; gap: 40px; \}/);
+  assert.doesNotMatch(styles, /#settings-panel-workspace \.settings-primary-field \+ \.settings-field-note \{ max-width: 62ch/);
+});
+
 test("keeps workspace settings available when provider-default status cannot load", () => {
   const markup = settingsMarkup(
     fixture(),
@@ -113,8 +149,8 @@ test("keeps workspace settings available when provider-default status cannot loa
     "ai",
     "The admin control plane is temporarily unavailable."
   );
-  assert.match(markup, /Member discovery/);
-  assert.match(markup, /AI policy/);
+  assert.match(markup, /Member Discovery/);
+  assert.match(markup, /AI Policy/);
   assert.match(markup, /Default LLM key status is temporarily unavailable/);
   assert.match(markup, /data-retry-provider-defaults/);
   assert.match(markup, /The admin control plane is temporarily unavailable/);
@@ -143,4 +179,23 @@ test("normalizes disabled reasoning summaries to the required off mode", () => {
 
   assert.equal(value.reasoningSummariesEnabled, false);
   assert.deepEqual(value.reasoningSummaryModes, ["off"]);
+});
+
+test("serializes sign-in methods and rejects an empty selection", () => {
+  const selected = new FormData();
+  selected.append("methods", "password");
+  selected.append("methods", "oidc");
+  assert.deepEqual(settingValue("user_sign_in_methods", selected), { methods: ["password", "oidc"] });
+  assert.throws(() => settingValue("user_sign_in_methods", new FormData()), /Select at least one sign-in method/);
+});
+
+test("recognizes only meaningful settings changes", () => {
+  assert.equal(
+    settingValuesMatch({ methods: ["password", "oidc"] }, { methods: ["oidc", "password"] }),
+    true
+  );
+  assert.equal(
+    settingValuesMatch({ mode: "exact_email" }, { mode: "directory" }),
+    false
+  );
 });
