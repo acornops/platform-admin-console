@@ -8,7 +8,7 @@ The control plane owns `/admin/v1`. Its route implementation, Zod request schema
 
 | Producer | Consumer | Surface | Direction |
 | --- | --- | --- | --- |
-| Control plane | Platform admin console BFF | Fifteen allowlisted `/admin/v1` methods and paths | BFF to control plane |
+| Control plane | Platform admin console BFF | Twenty-one allowlisted `/admin/v1` methods and paths | BFF to control plane |
 | Platform admin console BFF | Browser application | Same-origin `/admin-console-api/*` routes with privacy-projected responses | Browser to BFF |
 
 ## Platform Dependency Summary
@@ -27,6 +27,9 @@ The console has one runtime service dependency: `control-plane`. It does not cal
 - The consumer subset excludes session access, email-based user resolution, and account creation. It permits workspace-access grants only for existing users.
 - Producer errors retain `{ error: { code, message, retryable, details? } }`.
 - All console API and producer admin responses use `Cache-Control: no-store`.
+- Platform-default LLM key status and replacement use only the fixed
+  `/admin/v1/system/llm-provider-defaults` routes. Keys are write-only; the
+  browser receives only provider, configured, enabled, and source status.
 
 ## Control-Plane Boundary Notes
 

@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "lastReviewed": "2026-07-25",
+  "lastReviewed": "2026-07-29",
   "authority": "docs/product-specs/current-requirements.md",
   "expectedRuntime": {
-    "adminRouteCount": 18,
+    "adminRouteCount": 21,
     "allowedScopeCount": 8
   },
   "normativeSources": [
@@ -16,12 +16,24 @@
   "required": [
     {
       "id": "REQ-SET-001",
-      "summary": "Platform settings are fixed, privacy-projected, versioned, deployment-bounded, and writable only by the full platform-admin role.",
+      "summary": "Platform settings use the management-aligned compact tab and independent section structure for Workspace and AI while remaining fixed, privacy-projected, versioned, deployment-bounded, and writable only by the full platform-admin role.",
       "evidence": [
         { "file": "public/index.html", "contains": ["href=\"/settings\"", "data-route=\"settings\"", ">Platform Settings</span>"] },
-        { "file": "public/platform-settings-page.js", "contains": ["Member discovery", "AI policy", "Password signup", "expectedVersion", "Runtime override", "Deployment default"], "excludes": ["SMTP_PASSWORD", "OIDC_CLIENT_SECRET"] },
+        { "file": "public/platform-settings-page.js", "contains": ["SETTINGS_CATEGORIES = [\"workspace\", \"ai\"]", "management-settings-layout", "role=\"tablist\"", "data-settings-tab=\"${id}\"", "data-settings-panel=\"workspace\"", "data-settings-panel=\"ai\"", "settings-section-heading", "Member discovery", "AI policy", "Password signup", "expectedVersion", "Runtime override", "Deployment default"], "excludes": ["data-settings-tab=\"members\"", "SMTP_PASSWORD", "OIDC_CLIENT_SECRET"] },
+        { "file": "public/styles.css", "contains": [".settings-surface { width: 100%; max-width: 56rem;", ".settings-tabs { display: flex; min-height: 44px;", ".settings-section { margin-bottom: 40px;", ".settings-section form { max-width: none;", "border-radius: var(--radius); background: var(--surface)"] },
         { "file": "lib/admin-route-policy.mjs", "contains": ["/admin/v1/system/settings", "member_discovery|ai_policy|password_signup", "admin:system:write"] },
         { "file": "lib/admin-contract.mjs", "contains": ["projectPlatformSetting", "projectPlatformSettingConstraints"], "excludes": ["SMTP_PASSWORD", "OIDC_CLIENT_SECRET"] }
+      ]
+    },
+    {
+      "id": "REQ-SET-002",
+      "summary": "Platform-default LLM keys use separate provider cards with green configured-status badges and management-aligned fields and actions while remaining fixed-provider, write-only, status-projected, audited, and mutable only by the full platform-admin role.",
+      "evidence": [
+        { "file": "public/platform-settings-page.js", "contains": ["Default LLM keys", "type=\"password\"", "data-provider-default-form", "provider-default-card", "provider-default-title", "provider-default-status${status.configured ? \" configured\" : \"\"}", "provider-default-input", "provider-default-field", "provider-key-action", "Save key", "Rotate key", "Delete key", "M12 8V4H8", "Confirm delete"], "excludes": ["localStorage", "sessionStorage", "openai_api_key", "settings-status-success", "Delete default", "Replace key"] },
+        { "file": "public/styles.css", "contains": [".provider-default-status.configured", "background: var(--success-soft); color: var(--success)", ".provider-default-input { min-height: 44px", ".provider-key-action { min-height: 36px", ".provider-key-action.danger { background: #c13140; color: white; }"] },
+        { "file": "lib/admin-route-policy.mjs", "contains": ["/admin/v1/system/llm-provider-defaults", "openai|anthropic|gemini", "apiKey", "admin:system:write"] },
+        { "file": "lib/admin-contract.mjs", "contains": ["projectLlmProviderDefaultStatus", "platform_default", "configured", "enabled"], "excludes": ["apiKey: value.apiKey", "secretName: value.secretName"] },
+        { "file": "test/admin-route-policy.test.mjs", "contains": ["write-only fixed provider default mutations", "must-not-leak"] }
       ]
     },
     {
@@ -36,11 +48,11 @@
     },
     {
       "id": "REQ-BND-002",
-      "summary": "Platform administrators receive governance metadata only and cannot access tenant operations or workload controls.",
+      "summary": "Platform administrators receive governance metadata only, may mutate only write-only platform-default LLM keys, and cannot access tenant operations or workload controls.",
       "evidence": [
         { "file": "PRODUCT.md", "contains": ["without granting platform administrators access to workspace operational content", "must not run commands that modify workloads"] },
         { "file": "lib/admin-route-policy.mjs", "contains": ["containsOperationalResource", "containsSessionAccess"] },
-        { "file": "public/overview-view.js", "contains": ["No workspace logs or tenant audit events", "commands, tools, credentials, or workload changes"] }
+        { "file": "public/overview-view.js", "contains": ["No workspace logs or tenant audit events", "commands, tools, workspace credentials, or workload changes"] }
       ]
     },
     {

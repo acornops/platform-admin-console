@@ -1,7 +1,7 @@
 # Current Platform Admin Console Requirements
 
 Status: production authorization baseline
-Last reviewed: 2026-07-19
+Last reviewed: 2026-07-29
 Machine evidence: [`requirements-baseline.json`](requirements-baseline.json)
 
 ## Authority And Change Protocol
@@ -25,7 +25,7 @@ The executable baseline may use current source, durable docs, contracts, and foc
 | ID | Requirement |
 | --- | --- |
 | `REQ-BND-001` | The browser sends governance API calls only to same-origin `/admin-console-api/*`; the BFF maps those calls to a fixed `/admin/v1` allowlist and never accepts an arbitrary upstream path. The dedicated same-origin authentication flow is limited to the declared `/admin-auth/*` routes. |
-| `REQ-BND-002` | Platform admins receive governance metadata only. Tenant logs, audit records, targets, agents, sessions, runs, prompts, tools, credentials, commands, and workload changes remain unavailable. |
+| `REQ-BND-002` | Platform admins receive governance metadata only. Tenant logs, audit records, targets, agents, sessions, runs, prompts, tools, workspace credentials, commands, and workload changes remain unavailable. The only credential operation is the explicit write-only platform-default LLM key capability in `REQ-SET-002`; key values are never returned. |
 | `REQ-BND-003` | The consumer credential rejects `admin:*` and operational scopes. Responses are privacy-projected and fail closed before reaching the browser. |
 | `REQ-AUTH-001` | Production access uses a dedicated platform-admin OIDC client with PKCE, MFA assurance, a host-only one-hour admin session, CSRF protection, and exactly three roles: `platform-admin`, `platform-admin-viewer`, and `platform-admin-auditor`. The control plane requires both the internal BFF credential and the human admin session. Writes require authentication no older than 15 minutes. Password login and self-signup are absent. Identity-provider dependency failures return a stable retryable response and render a no-store sign-in-unavailable page with request correlation rather than raw internal error details. |
 
@@ -40,7 +40,8 @@ The executable baseline may use current source, durable docs, contracts, and foc
 
 | ID | Requirement |
 | --- | --- |
-| `REQ-SET-001` | Platform Settings provides governance-safe read access to member discovery, AI policy, and password-signup state. The full `platform-admin` role may save or reset versioned runtime overrides through fixed `/admin/v1/system/settings` contracts; viewers remain read-only and auditors have no settings route. The page shows the effective value, deployment boundary, source, policy blockers, and concise mutation feedback without exposing secrets or accepting arbitrary setting keys. |
+| `REQ-SET-001` | Platform Settings follows the management console's Workspace Settings structure with a compact underline tab strip and independently titled setting sections above quiet bordered control surfaces. It provides two accessible top-level categories: `Workspace`, containing member discovery and password-signup state, and `AI`, containing AI policy. The full `platform-admin` role may save or reset versioned runtime overrides through fixed `/admin/v1/system/settings` contracts; viewers remain read-only and auditors have no settings route. The page shows the effective value, deployment boundary, source, policy blockers, and concise mutation feedback without exposing secrets or accepting arbitrary setting keys. |
+| `REQ-SET-002` | The `AI` category in Platform Settings exposes separate provider cards with green configured-status badges for write-only OpenAI, Anthropic, and Gemini default LLM keys through fixed `/admin/v1/system/llm-provider-defaults` routes. Key inputs and Save key, Rotate key, and Delete key actions reuse the management-console field and button vocabulary; Save key and Rotate key share the same outlined treatment. A full `platform-admin` may save, rotate, or explicitly confirm deletion; viewers see status only and auditors have no settings route. Keys are encrypted by the gateway secret backend, never returned, logged, stored in browser storage, or included in audit metadata. Workspaces use a default unless they save an exact workspace override. |
 
 ### Overview
 
@@ -116,4 +117,4 @@ These are not current features. They stay disabled or absent until the producer 
 
 ## Current Contract Subset
 
-The accepted consumer subset is 18 routes and 8 least-privilege scopes, mirrored in `docs/contracts/manifest.json` and enforced by `lib/admin-route-policy.mjs` and `lib/admin-contract.mjs`. Adding an endpoint, query, scope, or payload field is a contract change, not a UI convenience; update producer and consumer artifacts together and record any necessary deviation in `DESIGN.md`.
+The accepted consumer subset is 21 routes and 8 least-privilege scopes, mirrored in `docs/contracts/manifest.json` and enforced by `lib/admin-route-policy.mjs` and `lib/admin-contract.mjs`. Adding an endpoint, query, scope, or payload field is a contract change, not a UI convenience; update producer and consumer artifacts together and record any necessary deviation in `DESIGN.md`.

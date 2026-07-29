@@ -50,18 +50,75 @@ function fixture() {
   ]);
 }
 
-test("renders the three bounded settings with source and safety context", () => {
-  const markup = settingsMarkup(fixture(), true);
+test("renders bounded settings and write-only provider defaults with safety context", () => {
+  const markup = settingsMarkup(fixture(), true, [
+    { provider: "openai", configured: true, enabled: true, source: "platform_default" },
+    { provider: "anthropic", configured: false, enabled: true, source: "none" },
+    { provider: "gemini", configured: false, enabled: false, source: "none" }
+  ]);
   assert.match(markup, /Member discovery/);
   assert.match(markup, /AI policy/);
   assert.match(markup, /Password signup/);
+  assert.match(markup, /Default LLM keys/);
+  assert.match(markup, /Used by every workspace unless that workspace saves its own provider key/);
+  assert.match(markup, /type="password"/);
+  assert.match(markup, /OpenAI[\s\S]+Configured/);
+  assert.match(markup, /provider-default-card/);
+  assert.match(markup, /provider-default-title/);
+  assert.match(markup, /provider-default-status configured/);
+  assert.match(markup, /provider-default-field/);
+  assert.match(markup, /input provider-default-input/);
+  assert.match(markup, /Rotate API key/);
+  assert.match(markup, /Rotate key[\s\S]+Delete key/);
+  assert.match(markup, /class="button secondary provider-key-action"[^>]*>[\s\S]+<span>Save key<\/span>/);
+  assert.match(markup, /provider-key-action/);
+  assert.doesNotMatch(markup, /provider-default-summary|provider-default-editor|settings-status-success|Delete default|Replace key/);
+  assert.match(markup, /Gemini[\s\S]+Disabled by deployment policy/);
   assert.match(markup, /Deployment default/);
   assert.match(markup, /Runtime override/);
   assert.match(markup, /Policy constrained/);
   assert.match(markup, /Enablement unavailable/);
   assert.match(markup, /data-save-setting disabled/);
+  assert.match(markup, /role="tablist" aria-label="Platform setting categories"/);
+  assert.match(markup, /settings-surface management-settings-layout/);
+  assert.match(markup, /settings-section-heading/);
+  assert.match(markup, /data-settings-tab="workspace"/);
+  assert.match(markup, /data-settings-tab="ai"/);
+  assert.doesNotMatch(markup, /data-settings-tab="members"/);
+  const workspacePanel = markup.indexOf('data-settings-panel="workspace"');
+  const aiPanel = markup.indexOf('data-settings-panel="ai"');
+  assert.ok(workspacePanel < markup.indexOf("Member discovery"));
+  assert.ok(markup.indexOf("Member discovery") < markup.indexOf("Password signup"));
+  assert.ok(markup.indexOf("Password signup") < aiPanel);
+  assert.ok(aiPanel < markup.indexOf("AI policy"));
+  assert.ok(markup.indexOf("AI policy") < markup.indexOf("Default LLM keys"));
   assert.doesNotMatch(markup, /directory">Directory/);
-  assert.doesNotMatch(markup, /SMTP_PASSWORD|OIDC_CLIENT_SECRET/);
+  assert.doesNotMatch(markup, /SMTP_PASSWORD|OIDC_CLIENT_SECRET|openai_api_key/);
+  assert.match(markup, /M12 8V4H8/);
+});
+
+test("renders AI as the selected category without exposing a Members tab", () => {
+  const markup = settingsMarkup(fixture(), true, [], "ai");
+  assert.match(markup, /id="settings-tab-ai"[\s\S]+aria-selected="true"/);
+  assert.match(markup, /data-settings-panel="workspace" hidden/);
+  assert.match(markup, /data-settings-panel="ai" >/);
+  assert.doesNotMatch(markup, /data-settings-tab="members"/);
+});
+
+test("keeps workspace settings available when provider-default status cannot load", () => {
+  const markup = settingsMarkup(
+    fixture(),
+    true,
+    null,
+    "ai",
+    "The admin control plane is temporarily unavailable."
+  );
+  assert.match(markup, /Member discovery/);
+  assert.match(markup, /AI policy/);
+  assert.match(markup, /Default LLM key status is temporarily unavailable/);
+  assert.match(markup, /data-retry-provider-defaults/);
+  assert.match(markup, /The admin control plane is temporarily unavailable/);
+  assert.doesNotMatch(markup, /data-provider-default-form/);
 });
 
 test("keeps mutation controls unavailable for read-only administrators", () => {
@@ -69,6 +126,7 @@ test("keeps mutation controls unavailable for read-only administrators", () => {
   assert.match(markup, /Your platform role has read-only access/);
   assert.match(markup, /data-reset-setting disabled/);
   assert.match(markup, /form="setting-form-member_discovery" data-save-setting disabled/);
+  assert.match(markup, /data-provider="openai"[\s\S]+name="apiKey"[^>]+disabled/);
 });
 
 test("normalizes disabled reasoning summaries to the required off mode", () => {

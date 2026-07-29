@@ -12,6 +12,12 @@
 
 `CONTROL_PLANE_ADMIN_TOKEN` is server-only. It must come from a production secret store, never a browser bundle, cookie value, URL, log, error, test fixture, or committed environment file. The console rejects broad or operational scopes even if the control plane would accept them.
 
+Platform-default LLM keys are accepted only on the fixed provider routes for a
+full `platform-admin`. The BFF validates provider, method, body fields, key
+length, recent authentication, and CSRF evidence. Successful responses project
+only configured status and discard any unexpected upstream secret fields.
+Audit events contain provider and action only.
+
 ## Authorization
 
 Navigation visibility is not authorization. The BFF route policy and control-plane scope middleware both enforce every request. The consumer credential is denied when it contains `admin:*` or any target, run, tooling, or agent-key scope.

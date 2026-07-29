@@ -3,6 +3,10 @@
 - [Account menu and audit actor](account-menu-and-audit-actor.md)
 - [Align workspace directory and details with Users](workspace-directory-parity.md)
 - [Grant existing user workspace access](grant-existing-user-workspace-access.md)
+- [Platform settings categories](platform-settings-categories.md)
+- [Platform settings management alignment](platform-settings-management-alignment.md)
+- [LLM key settings polish](llm-key-settings-polish.md)
+- [LLM key card UI restore](llm-key-card-ui-restore.md)
 
 These plans preserve delivery history. They are not current requirements and may describe interactions that were later removed or replaced. Use [`../../product-specs/current-requirements.md`](../../product-specs/current-requirements.md) and [`../../../DESIGN.md`](../../../DESIGN.md) for the accepted baseline.
 

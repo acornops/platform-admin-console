@@ -358,6 +358,35 @@ test("mock platform settings support the versioned update and reset lifecycle", 
   });
 });
 
+test("mock platform LLM defaults are write-only and support replace and delete", async () => {
+  await withServer({ mode: "mock" }, async (base) => {
+    const csrf = await fetch(`${base}/admin-console-api/auth/csrf`).then((response) => response.json());
+    const initial = await fetch(`${base}/admin-console-api/llm-provider-defaults`).then((response) => response.json());
+    assert.equal(initial.providers.find((provider) => provider.provider === "openai").configured, true);
+
+    const updatedResponse = await fetch(`${base}/admin-console-api/llm-provider-defaults/anthropic`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", "x-csrf-token": csrf.csrfToken },
+      body: JSON.stringify({
+        apiKey: "must-never-be-returned",
+        reason: "Configure Anthropic default"
+      })
+    });
+    assert.equal(updatedResponse.status, 200);
+    const updatedBody = await updatedResponse.text();
+    assert.doesNotMatch(updatedBody, /must-never-be-returned|apiKey/);
+    assert.equal(JSON.parse(updatedBody).providers.find((provider) => provider.provider === "anthropic").configured, true);
+
+    const deletedResponse = await fetch(`${base}/admin-console-api/llm-provider-defaults/anthropic`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json", "x-csrf-token": csrf.csrfToken },
+      body: JSON.stringify({ reason: "Delete Anthropic default" })
+    });
+    assert.equal(deletedResponse.status, 200);
+    assert.equal((await deletedResponse.json()).providers.find((provider) => provider.provider === "anthropic").configured, false);
+  });
+});
+
 test("mock workspace members use the authoritative paginated route", async () => {
   await withServer({ mode: "mock" }, async (base) => {
     const first = await fetch(`${base}/admin-console-api/workspaces/ws_atlas/members?limit=2`).then((response) => response.json());

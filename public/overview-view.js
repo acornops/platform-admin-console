@@ -22,7 +22,7 @@ export function overviewMarkup({ workspaces, users, pageHeader }) {
         <article class="signal-row"><div class="signal-marker neutral">${model.topEnvironmentShare}%</div><div><h3>Connected environments are concentrated in ${escapeText(model.environmentLeaders[0]?.name || "no workspace")}</h3><p>${model.environmentLeaders[0] ? `${model.environmentLeaders[0].name} accounts for ${model.topEnvironmentShare}% of all connected environments.` : "Connected-environment concentration will appear when workspaces are available."}</p></div></article>
       </section>
     </div>
-    <aside class="overview-boundary" aria-label="Data boundary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><strong>Governance data only.</strong><span>No workspace logs or tenant audit events. No targets, agents, sessions, runs, prompts, commands, tools, credentials, or workload changes.</span></aside>`;
+    <aside class="overview-boundary" aria-label="Data boundary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><strong>Governance data only.</strong><span>No workspace logs or tenant audit events. No targets, agents, sessions, runs, prompts, commands, tools, workspace credentials, or workload changes.</span></aside>`;
 }
 
 export function buildOverviewModel({ workspaces, users }) {

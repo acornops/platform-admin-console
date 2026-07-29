@@ -2,7 +2,7 @@
 
 ## Protected Boundary
 
-The console is for platform governance, not tenant operations. Platform administrators may see governance metadata needed to identify accounts and workspaces, but must not see tenant logs, targets, agents, runs, sessions, commands, prompts, credentials, tool output, or workspace audit events.
+The console is for platform governance, not tenant operations. Platform administrators may see governance metadata needed to identify accounts and workspaces, but must not see tenant logs, targets, agents, runs, sessions, commands, prompts, workspace credentials, tool output, or workspace audit events. Full platform administrators may replace or delete write-only platform-default LLM keys; key values are never returned.
 
 ## Controls
 

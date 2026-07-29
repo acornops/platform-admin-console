@@ -4,7 +4,7 @@ import { ADMIN_ROUTE_DEFINITIONS, isGovernanceOnlyUpstreamPath, matchAdminRoute,
 import { ALLOWED_ADMIN_SCOPES, FORBIDDEN_ADMIN_SCOPES, projectAdminResponse, validateAdminIdentity } from "../lib/admin-contract.mjs";
 
 test("all runtime routes use the admin namespace and governance-only nouns", () => {
-  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 18);
+  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 21);
   for (const route of ADMIN_ROUTE_DEFINITIONS) {
     assert.equal(isGovernanceOnlyUpstreamPath(route.upstreamTemplate), true, route.upstreamTemplate);
     assert.ok(ALLOWED_ADMIN_SCOPES.includes(route.requiredScope), route.requiredScope);
@@ -126,6 +126,50 @@ test("allows only fixed versioned platform setting mutations", () => {
   assert.equal(matchAdminRoute("PATCH", "/settings/arbitrary"), null);
   assert.equal(sanitizedAdminBody(patch, { value: {}, expectedVersion: -1, reason: "Invalid" }).ok, false);
   assert.equal(sanitizedAdminBody(patch, { value: {}, expectedVersion: 0, reason: "Valid", secret: "no" }).ok, false);
+});
+
+test("allows only write-only fixed provider default mutations", () => {
+  const list = matchAdminRoute("GET", "/llm-provider-defaults");
+  const put = matchAdminRoute("PUT", "/llm-provider-defaults/openai");
+  const remove = matchAdminRoute("DELETE", "/llm-provider-defaults/openai");
+  assert.equal(list.upstreamPath, "/admin/v1/system/llm-provider-defaults");
+  assert.equal(put.upstreamPath, "/admin/v1/system/llm-provider-defaults/openai");
+  assert.deepEqual(sanitizedAdminBody(put, {
+    apiKey: "  write-only-key  ",
+    reason: "Rotate platform default"
+  }), {
+    ok: true,
+    body: { apiKey: "write-only-key", reason: "Rotate platform default" }
+  });
+  assert.deepEqual(sanitizedAdminBody(remove, {
+    reason: "Delete platform default"
+  }), {
+    ok: true,
+    body: { reason: "Delete platform default" }
+  });
+  assert.equal(matchAdminRoute("PUT", "/llm-provider-defaults/unknown"), null);
+  assert.equal(sanitizedAdminBody(put, { apiKey: "", reason: "Invalid" }).ok, false);
+  assert.equal(sanitizedAdminBody(put, { apiKey: "secret", reason: "Valid", expose: true }).ok, false);
+
+  const projected = projectAdminResponse(list, {
+    providers: [{
+      provider: "openai",
+      configured: true,
+      enabled: true,
+      source: "platform_default",
+      apiKey: "must-not-leak",
+      secretName: "openai_api_key"
+    }]
+  });
+  assert.deepEqual(projected, {
+    providers: [{
+      provider: "openai",
+      configured: true,
+      enabled: true,
+      source: "platform_default"
+    }]
+  });
+  assert.doesNotMatch(JSON.stringify(projected), /must-not-leak|secretName|apiKey/);
 });
 
 test("denies operational, tenant-audit, arbitrary, and wrong-method routes", () => {
