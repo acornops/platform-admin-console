@@ -201,7 +201,10 @@ test("serves the application with security headers", async () => {
   await withServer({ mode: "mock" }, async (base) => {
     const response = await fetch(`${base}/workspaces/ws_atlas`);
     assert.equal(response.status, 200);
-    assert.match(response.headers.get("content-security-policy"), /frame-ancestors 'none'/);
+    const csp = response.headers.get("content-security-policy");
+    assert.match(csp, /frame-ancestors 'none'/);
+    assert.match(csp, /connect-src 'self' https:\/\/api\.github\.com https:\/\/gitlab\.com/);
+    assert.doesNotMatch(csp, /connect-src[^;]*https:(?:\s|;)/);
     assert.equal(response.headers.get("x-frame-options"), "DENY");
     assert.equal(response.headers.get("strict-transport-security"), "max-age=31536000");
     assert.match(await response.text(), /Platform Admin/);

@@ -4,7 +4,7 @@ import { ADMIN_ROUTE_DEFINITIONS, isGovernanceOnlyUpstreamPath, matchAdminRoute,
 import { ALLOWED_ADMIN_SCOPES, FORBIDDEN_ADMIN_SCOPES, projectAdminResponse, validateAdminIdentity } from "../lib/admin-contract.mjs";
 
 test("all runtime routes use the admin namespace and governance-only nouns", () => {
-  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 21);
+  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 25);
   for (const route of ADMIN_ROUTE_DEFINITIONS) {
     assert.equal(isGovernanceOnlyUpstreamPath(route.upstreamTemplate), true, route.upstreamTemplate);
     assert.ok(ALLOWED_ADMIN_SCOPES.includes(route.requiredScope), route.requiredScope);
@@ -181,6 +181,66 @@ test("allows only write-only fixed provider default mutations", () => {
     }]
   });
   assert.doesNotMatch(JSON.stringify(projected), /must-not-leak|secretName|apiKey/);
+});
+
+test("allows only secret-free public workspace defaults", () => {
+  const create = matchAdminRoute("POST", "/workspace-defaults");
+  const valid = sanitizedAdminBody(create, {
+    kind: "mcp_server",
+    name: "GitHub",
+    availableIn: ["virtual_machines", "agents"],
+    source: { type: "https", endpoint: "https://mcp.example.test/service" },
+    reason: "Seed future workspaces"
+  });
+  assert.deepEqual(valid, {
+    ok: true,
+    body: {
+      kind: "mcp_server",
+      name: "GitHub",
+      availableIn: ["agents", "virtual_machines"],
+      source: { type: "https", endpoint: "https://mcp.example.test/service" },
+      reason: "Seed future workspaces"
+    }
+  });
+  for (const endpoint of [
+    "https://localhost/mcp",
+    "https://127.0.0.1/mcp",
+    "https://8.8.8.8/mcp",
+    "https://mcp.example.test/path?token=secret"
+  ]) {
+    assert.equal(sanitizedAdminBody(create, {
+      kind: "mcp_server",
+      name: "Rejected",
+      availableIn: ["agents"],
+      source: { type: "https", endpoint },
+      reason: "Reject unsafe endpoint"
+    }).ok, false, endpoint);
+  }
+
+  const list = matchAdminRoute("GET", "/workspace-defaults");
+  const projected = projectAdminResponse(list, {
+    items: [{
+      id: "default-1",
+      kind: "skill",
+      name: "Triage",
+      description: "Triage incidents",
+      availableIn: ["agents"],
+      source: {
+        type: "git",
+        provider: "github",
+        repoUrl: "https://github.com/acornops/skills",
+        apiBaseUrl: "https://github.internal/api/v3",
+        ref: "main",
+        commitSha: "0123456789abcdef0123456789abcdef01234567"
+      },
+      files: [{ path: "SKILL.md", content: "must-not-leak" }],
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z"
+    }]
+  });
+  assert.equal("apiBaseUrl" in projected.items[0].source, false);
+  assert.equal("files" in projected.items[0], false);
+  assert.doesNotMatch(JSON.stringify(projected), /must-not-leak|github\.internal/);
 });
 
 test("denies operational, tenant-audit, arbitrary, and wrong-method routes", () => {

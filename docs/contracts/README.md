@@ -8,7 +8,7 @@ The control plane owns `/admin/v1`. Its route implementation, Zod request schema
 
 | Producer | Consumer | Surface | Direction |
 | --- | --- | --- | --- |
-| Control plane | Platform admin console BFF | Twenty-one allowlisted `/admin/v1` methods and paths | BFF to control plane |
+| Control plane | Platform admin console BFF | Twenty-five allowlisted `/admin/v1` methods and paths | BFF to control plane |
 | Platform admin console BFF | Browser application | Same-origin `/admin-console-api/*` routes with privacy-projected responses | Browser to BFF |
 
 ## Platform Dependency Summary
@@ -34,6 +34,13 @@ The console has one runtime service dependency: `control-plane`. It does not cal
   setting. The BFF accepts and projects only `{ methods: ["password"|"oidc", ...] }`,
   requires at least one unique method, and projects only `allowedMethods` plus
   per-method deployment blockers.
+- Workspace defaults use a non-empty unique `availableIn` array containing
+  `agents`, `kubernetes`, and/or `virtual_machines`; the scalar list query tests
+  membership. The MCP browser request contains only name, HTTPS endpoint,
+  destinations, and reason; the BFF injects the producer's `none`
+  authentication compatibility value and never projects MCP authentication
+  metadata back to the browser. Skill import accepts a bounded pinned Markdown
+  snapshot from the browser and never returns bundle contents.
 
 ## Control-Plane Boundary Notes
 

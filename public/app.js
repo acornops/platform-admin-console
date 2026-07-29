@@ -11,11 +11,10 @@ import { overviewMarkup } from "./overview-view.js";
 import { cleanupAuditPage, renderAuditPage } from "./audit-page.js";
 import { bindAdminAccountMenu } from "./account-menu.js";
 import { renderPlatformSettingsPage } from "./platform-settings-page.js";
-
+import { renderWorkspaceDefaultsPage } from "./workspace-defaults-page.js";
 const main = document.querySelector("#main");
-const dialog = document.querySelector("#action-dialog");
-const dialogForm = document.querySelector("#dialog-form");
-const dialogCancel = document.querySelector("#dialog-cancel");
+const dialog = document.querySelector("#action-dialog"), dialogForm = document.querySelector("#dialog-form");
+const dialogCancel = document.querySelector("#dialog-cancel"), dialogClose = document.querySelector("#dialog-close");
 const showToast = createToastController(document.querySelector("#toast"));
 const sidebar = document.querySelector("#sidebar"), scrim = document.querySelector("#scrim"), menuButton = document.querySelector("#menu-button");
 const userPanelLayer = document.querySelector("#user-panel-layer"), userPanel = document.querySelector("#user-panel"), userPanelContent = document.querySelector("#user-panel-content"), userPanelClose = document.querySelector("#user-panel-close");
@@ -29,7 +28,9 @@ const routes = [
   { test: /^\/workspaces\/([^/]+)$/, name: "workspaces", render: (match) => renderWorkspaces(match[1]) },
   { test: /^\/users$/, name: "users", render: () => renderUsers() },
   { test: /^\/users\/([^/]+)$/, name: "users", render: (match) => renderUsers(match[1]) },
-  { test: /^\/settings$/, name: "settings", render: () => renderPlatformSettingsPage({ main, api, pageHeader, canMutate: canMutate(), showToast, enhanceSelect, readableError }) },
+  { test: /^\/settings(?:\/workspace)?$/, name: "settings-workspace", render: () => renderPlatformSettingsPage({ main, api, pageHeader, category: "workspace", canMutate: canMutate(), showToast, enhanceSelect, readableError }) },
+  { test: /^\/settings\/ai$/, name: "settings-ai", render: () => renderPlatformSettingsPage({ main, api, pageHeader, category: "ai", canMutate: canMutate(), showToast, enhanceSelect, readableError }) },
+  { test: /^\/workspace-defaults$/, name: "workspace-defaults", render: () => renderWorkspaceDefaultsPage({ main, api, pageHeader, canMutate: canMutate(), showToast, enhanceSelect, readableError, openDialog }) },
   { test: /^\/audit$/, name: "audit", render: () => renderAuditPage({ main, api, pageHeader, readableError }) }
 ];
 document.addEventListener("click", (event) => {
@@ -72,7 +73,7 @@ window.addEventListener("popstate", () => {
 menuButton.addEventListener("click", () => toggleMenu(!sidebar.classList.contains("open")));
 scrim.addEventListener("click", () => toggleMenu(false));
 dialogForm.addEventListener("submit", handleDialogSubmit);
-dialogCancel.addEventListener("click", () => dialog.close("cancel"));
+dialogCancel.addEventListener("click", () => dialog.close("cancel")); dialogClose.addEventListener("click", () => dialog.close("cancel"));
 dialog.addEventListener("close", () => { state.dialogAction = null; });
 userPanelClose.addEventListener("click", requestCloseUserPanel);
 userPanelLayer.addEventListener("mousedown", (event) => { if (event.target === userPanelLayer) requestCloseUserPanel(); });
@@ -80,7 +81,6 @@ workspacePanelClose.addEventListener("click", requestCloseWorkspacePanel);
 workspacePanelLayer.addEventListener("mousedown", (event) => { if (event.target === workspacePanelLayer) requestCloseWorkspacePanel(); });
 await loadIdentity();
 await router();
-
 async function router() {
   toggleMenu(false);
   cleanupMenuControls(main);
@@ -114,14 +114,14 @@ async function loadIdentity() {
     document.querySelector('[data-route="overview"]').hidden = role === "platform-admin-auditor";
     document.querySelector('[data-route="workspaces"]').hidden = role === "platform-admin-auditor";
     document.querySelector('[data-route="users"]').hidden = role === "platform-admin-auditor";
-    document.querySelector('[data-route="settings"]').hidden = role === "platform-admin-auditor";
+    document.querySelectorAll("[data-platform-settings-route]").forEach((item) => { item.hidden = role === "platform-admin-auditor"; });
+    document.querySelector('[data-route="workspace-defaults"]').hidden = role === "platform-admin-auditor";
     if (role === "platform-admin-auditor" && location.pathname !== "/audit") history.replaceState({}, "", "/audit");
   } catch (error) {
     if (error.status === 401) { location.assign(`/admin-auth/oidc/login?return_to=${encodeURIComponent(location.pathname)}`); await new Promise(() => {}); }
     throw error;
   }
 }
-
 async function renderOverview() {
   const [workspaces, users] = await Promise.all([loadAllAdminPages("/workspaces"), loadAllAdminPages("/users")]);
   state.workspaces = workspaces;
@@ -341,7 +341,7 @@ function changeWorkspaceLifecycle(workspace) {
   confirmation.addEventListener("input", () => { submitButton.disabled = confirmation.value !== workspace.name; });
 }
 
-function openDialog({ title, description, submit, fields = "", action, danger = false, submitDisabled = false, validate = null, validationMessage = "Check the entered values and try again." }) {
+function openDialog({ title, description, submit, fields = "", action, danger = false, submitDisabled = false, validate = null, validationMessage = "Check the entered values and try again.", size = "compact", pendingLabel = "Applying…" }) {
   document.querySelector("#dialog-title").textContent = title;
   document.querySelector("#dialog-description").textContent = description;
   const dialogFields = document.querySelector("#dialog-fields");
@@ -353,6 +353,7 @@ function openDialog({ title, description, submit, fields = "", action, danger = 
   submitButton.textContent = submit;
   submitButton.className = `button ${danger ? "danger" : "primary"}`;
   submitButton.disabled = submitDisabled;
+  dialog.dataset.size = size; dialog.dataset.pendingLabel = pendingLabel;
   state.dialogAction = async (data) => {
     if (validate && !validate(data)) throw new Error(validationMessage);
     return action(data);
@@ -365,10 +366,10 @@ async function handleDialogSubmit(event) {
   if (!dialogForm.reportValidity() || !state.dialogAction) return;
   const submitButton = document.querySelector("#dialog-submit");
   const original = submitButton.textContent;
-  submitButton.disabled = true; submitButton.textContent = "Applying…";
+  submitButton.disabled = true; dialogClose.disabled = dialogCancel.disabled = true; submitButton.textContent = dialog.dataset.pendingLabel || "Applying…";
   try { await state.dialogAction(new FormData(dialogForm)); dialog.close(); state.dialogAction = null; }
   catch (error) { document.querySelector("#dialog-error").textContent = readableError(error); }
-  finally { submitButton.disabled = false; submitButton.textContent = original; }
+  finally { submitButton.disabled = dialogClose.disabled = dialogCancel.disabled = false; submitButton.textContent = original; }
 }
 
 async function api(path, options = {}) {

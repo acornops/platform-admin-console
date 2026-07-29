@@ -25,9 +25,11 @@ const [html, app, auditPage, overviewView, userDirectory, userPanelView, members
 test("matches the management-console shell and icon vocabulary", () => {
   assert.match(html, /class="wordmark"><strong>acorn<\/strong><b>ops<\/b>/);
   assert.match(html, /<rect width="7" height="7" x="3" y="3" rx="1"\/><rect width="7" height="7" x="14" y="3" rx="1"\/><rect width="7" height="7" x="14" y="14" rx="1"\/><rect width="7" height="7" x="3" y="14" rx="1"\/>/);
-  assert.equal((html.match(/class="nav-icon"/g) || []).length, 5);
-  assert.match(html, /<nav class="nav-list">\s*<a href="\/" data-route="overview">[\s\S]+?<span>Overview<\/span><\/a>\s*<div class="nav-section" role="group" aria-labelledby="admin-management-navigation-title">/);
-  assert.match(html, /class="nav-section" role="group" aria-labelledby="admin-management-navigation-title"[\s\S]+?id="admin-management-navigation-title">Admin Management<\/span>[\s\S]+?<span>Workspaces<\/span>[\s\S]+?<span>Users<\/span>[\s\S]+?<span>Platform Settings<\/span>/);
+  assert.equal((html.match(/class="nav-icon"/g) || []).length, 7);
+  assert.match(html, /<nav class="nav-list">\s*<a href="\/" data-route="overview">[\s\S]+?<span>Overview<\/span><\/a>\s*<div class="nav-section" role="group" aria-labelledby="resource-management-navigation-title">/);
+  assert.match(html, /id="resource-management-navigation-title">Resource Management<\/span>[\s\S]+?<span>Workspaces<\/span>[\s\S]+?<span>Users<\/span>[\s\S]+?id="platform-settings-navigation-title">Platform Settings<\/span>[\s\S]+?<span>Workspace<\/span>[\s\S]+?<span>AI Providers<\/span>[\s\S]+?<span>Capabilities<\/span>/);
+  assert.match(app, /\^\\\/settings\(\?:\\\/workspace\)\?\$\/[\s\S]+name: "settings-workspace"[\s\S]+category: "workspace"/);
+  assert.match(app, /\^\\\/settings\\\/ai\$\/[\s\S]+name: "settings-ai"[\s\S]+category: "ai"/);
   assert.match(html, /class="nav-section" role="group" aria-labelledby="governance-navigation-title"[\s\S]+?id="governance-navigation-title">Governance<\/span>[\s\S]+?<span>Admin Audit<\/span>/);
   assert.doesNotMatch(html, /aria-labelledby="management-navigation-title"|id="management-navigation-title"|aria-labelledby="platform-navigation-title"|id="platform-navigation-title"|<span>Management<\/span>|<span>Platform<\/span>|<span>Settings<\/span>/);
   assert.match(styles, /\.nav-list \{ display: grid; align-content: start; gap: 20px;/);

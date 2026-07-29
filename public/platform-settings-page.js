@@ -1,7 +1,6 @@
 const PROVIDERS = ["openai", "anthropic", "gemini"];
 const PROVIDER_LABELS = { openai: "OpenAI", anthropic: "Anthropic", gemini: "Gemini" };
 const SETTINGS_CATEGORIES = ["workspace", "ai"];
-let activeSettingsCategory = "workspace";
 const DISCOVERY_LABELS = {
   disabled: "By Invites Only",
   exact_email: "Exact Email",
@@ -12,14 +11,16 @@ export async function renderPlatformSettingsPage({
   main,
   api,
   pageHeader,
+  category = "workspace",
   canMutate,
   showToast,
   enhanceSelect,
   readableError
 }) {
+  const selectedCategory = SETTINGS_CATEGORIES.includes(category) ? category : "workspace";
   const [settingsResult, providerDefaultsResult] = await Promise.allSettled([
     api("/settings"),
-    api("/llm-provider-defaults")
+    selectedCategory === "ai" ? api("/llm-provider-defaults") : Promise.resolve({ providers: [] })
   ]);
   if (settingsResult.status === "rejected") throw settingsResult.reason;
   const settingsResponse = settingsResult.value;
@@ -31,20 +32,22 @@ export async function renderPlatformSettingsPage({
     ? readableError(providerDefaultsResult.reason)
     : "";
   main.innerHTML = `${pageHeader(
-    "Platform Settings",
-    "Manage approved runtime policy within deployment-defined boundaries."
-  )}${settingsMarkup(settings, canMutate, providerDefaults, activeSettingsCategory, providerDefaultsError)}`;
+    selectedCategory === "workspace" ? "Workspace Settings" : "AI Providers",
+    selectedCategory === "workspace"
+      ? "Manage workspace access and sign-in defaults."
+      : "Manage default AI provider keys and platform AI policy."
+  )}${settingsMarkup(settings, canMutate, providerDefaults, selectedCategory, providerDefaultsError)}`;
   main.querySelectorAll("select").forEach((select) => enhanceSelect(select));
   const rerender = () => renderPlatformSettingsPage({
     main,
     api,
     pageHeader,
+    category: selectedCategory,
     canMutate,
     showToast,
     enhanceSelect,
     readableError
   });
-  bindSettingsTabs(main);
   bindSettingForms({ main, api, canMutate, showToast, enhanceSelect, readableError, rerender });
   bindProviderDefaultForms({ main, api, canMutate, showToast, readableError, rerender });
   main.querySelector("[data-retry-provider-defaults]")?.addEventListener("click", rerender);
@@ -56,76 +59,14 @@ export function settingsMarkup(settings, canMutate, providerDefaults = [], activ
   const userSignInMethods = settings.get("user_sign_in_methods");
   const selectedCategory = SETTINGS_CATEGORIES.includes(activeCategory) ? activeCategory : "workspace";
   return `<div class="settings-surface management-settings-layout">
-    <div class="settings-tabs" role="tablist" aria-label="Platform setting categories">
-      ${settingsTabMarkup({
-        id: "workspace",
-        label: "Workspace",
-        icon: workspaceSettingsIcon(),
-        selected: selectedCategory === "workspace"
-      })}
-      ${settingsTabMarkup({
-        id: "ai",
-        label: "AI",
-        icon: aiSettingsIcon(),
-        selected: selectedCategory === "ai"
-      })}
-    </div>
-    <div id="settings-panel-workspace" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-workspace" data-settings-panel="workspace" ${selectedCategory === "workspace" ? "" : "hidden"}>
+    ${selectedCategory === "workspace" ? `<div class="settings-route-content workspace-settings-content" data-settings-category="workspace">
       ${memberDiscoveryMarkup(memberDiscovery, canMutate)}
       ${userSignInMethodsMarkup(userSignInMethods, canMutate)}
-    </div>
-    <div id="settings-panel-ai" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-ai" data-settings-panel="ai" ${selectedCategory === "ai" ? "" : "hidden"}>
+    </div>` : `<div class="settings-route-content ai-settings-content" data-settings-category="ai">
       ${llmProviderDefaultsMarkup(providerDefaults, canMutate, providerDefaultsError)}
       ${aiPolicyMarkup(aiPolicy, canMutate)}
-    </div>
+    </div>`}
   </div>`;
-}
-
-function settingsTabMarkup({ id, label, icon, selected }) {
-  return `<button id="settings-tab-${id}" class="settings-tab" type="button" role="tab" aria-selected="${selected}" aria-controls="settings-panel-${id}" tabindex="${selected ? "0" : "-1"}" data-settings-tab="${id}">
-    ${icon}
-    <span>${label}</span>
-  </button>`;
-}
-
-function bindSettingsTabs(main) {
-  const tabs = [...main.querySelectorAll("[data-settings-tab]")];
-  const panels = [...main.querySelectorAll("[data-settings-panel]")];
-  const activate = (category, { focus = false } = {}) => {
-    if (!SETTINGS_CATEGORIES.includes(category)) return;
-    activeSettingsCategory = category;
-    tabs.forEach((tab) => {
-      const selected = tab.dataset.settingsTab === category;
-      tab.setAttribute("aria-selected", String(selected));
-      tab.tabIndex = selected ? 0 : -1;
-      if (selected && focus) tab.focus();
-    });
-    panels.forEach((panel) => {
-      panel.hidden = panel.dataset.settingsPanel !== category;
-    });
-  };
-
-  tabs.forEach((tab, index) => {
-    tab.addEventListener("click", () => activate(tab.dataset.settingsTab));
-    tab.addEventListener("keydown", (event) => {
-      let nextIndex;
-      if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
-      else if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
-      else if (event.key === "Home") nextIndex = 0;
-      else if (event.key === "End") nextIndex = tabs.length - 1;
-      else return;
-      event.preventDefault();
-      activate(tabs[nextIndex].dataset.settingsTab, { focus: true });
-    });
-  });
-}
-
-function workspaceSettingsIcon() {
-  return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/></svg>';
-}
-
-function aiSettingsIcon() {
-  return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>';
 }
 
 function checkCircleIcon() {
