@@ -2,6 +2,12 @@
 
 A separate, governance-only console for AcornOps platform administrators. It manages recoverable workspace suspension, existing-user workspace access and roles, plan assignment, and platform-admin audit history without exposing tenant logs, target details, sessions, runs, commands, or workload controls. Workspace limits remain tied to the selected plan.
 
+The browser uses the same React, TypeScript, Vite, Tailwind, Lucide, and
+supporting-library foundation as the Management Console. Its domain-neutral UI
+tokens and primitives are replicated into the local `packages/ui` workspace so
+the consoles remain visually and behaviorally consistent without coupling
+deployments to a sibling checkout.
+
 ## Local development
 
 ```bash

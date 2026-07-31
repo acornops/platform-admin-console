@@ -5,7 +5,7 @@ import {
   importSkillFromGit,
   parseGitHubRepository,
   parseGitLabRepository
-} from "../public/git-skill-import.js";
+} from "../src/lib/git-skill-import.js";
 
 const commitSha = "0123456789abcdef0123456789abcdef01234567";
 

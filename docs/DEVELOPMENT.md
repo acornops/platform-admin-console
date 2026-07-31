@@ -10,16 +10,23 @@ npm run dev
 ```
 
 The default `mock` mode requires no credentials. Use `http://127.0.0.1:4173`.
+The development command starts the production BFF boundary with Vite middleware
+on the same origin. Browser changes in `src/` and shared UI changes in
+`packages/ui/` update through Vite hot module replacement. Restart the process
+after changing the Node BFF or its `lib/` modules. Production continues to serve
+the compiled `dist/` assets.
 
 ## Validation Ladder
 
-- `npm run lint`: syntax checks for server, policy, projection, mock, and browser code.
+- `npm run lint`: strict TypeScript checks for the React application and shared
+  UI workspace, plus syntax checks for the server, policy, projection, and mock.
 - `npm run test`: policy, projection, mutation, HTTP, and denial tests.
 - `npm run test:coverage`: CI-oriented coverage for the executable Node BFF, policy, mock, and requirements-checker runtime with 80% line, 65% branch, and 80% function minimums. Browser modules are covered by focused UI requirement tests and live-browser verification rather than misleading Node execution coverage.
 - `npm run contracts:check`: mirrored manifest, route, scope, DTO, and producer alignment.
 - `npm run requirements:check`: current requirements, superseded exclusions, blocked capabilities, runtime counts, and evidence links.
 - `npm run harness:check`: repository knowledge, workflow, source-budget, and policy checks.
-- `npm run build`: reproducible static asset build.
+- `npm run build`: reproducible Vite asset build after compiling the shared UI
+  workspace.
 - `npm run smoke:routes`: static routes, approved APIs, and denied-route smoke coverage.
 - `npm run validate`: canonical local validation.
 - `npm run validate:ci`: canonical CI validation with coverage.

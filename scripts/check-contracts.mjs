@@ -18,7 +18,16 @@ const design = read("DESIGN.md");
 const policy = read("lib/admin-route-policy.mjs");
 const projection = read("lib/admin-contract.mjs");
 const mock = read("lib/mock-admin-store.mjs");
-const browser = read("public/app.js");
+const browser = [
+  "src/api.ts",
+  "src/App.tsx",
+  "src/pages/AuditPage.tsx",
+  "src/pages/OverviewPage.tsx",
+  "src/pages/SettingsPage.tsx",
+  "src/pages/UsersPage.tsx",
+  "src/pages/WorkspaceDefaultsPage.tsx",
+  "src/pages/WorkspacesPage.tsx"
+].map(read).join("\n");
 const server = read("server.mjs");
 const projectionTests = read("test/admin-route-policy.test.mjs");
 

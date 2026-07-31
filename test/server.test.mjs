@@ -205,15 +205,41 @@ test("serves the application with security headers", async () => {
     assert.match(csp, /frame-ancestors 'none'/);
     assert.match(csp, /connect-src 'self' https:\/\/api\.github\.com https:\/\/gitlab\.com/);
     assert.doesNotMatch(csp, /connect-src[^;]*https:(?:\s|;)/);
+    assert.doesNotMatch(csp, /unsafe-inline/);
     assert.equal(response.headers.get("x-frame-options"), "DENY");
     assert.equal(response.headers.get("strict-transport-security"), "max-age=31536000");
-    assert.match(await response.text(), /Platform Admin/);
+    const html = await response.text();
+    assert.match(html, /<title>Admin · AcornOps<\/title>/);
+    assert.match(html, /data-console="platform-admin"/);
+    assert.match(html, /<div id="root"><\/div>/);
+    assert.match(html, /<script type="module"/);
+  });
+});
+
+test("development mode serves Vite HMR without bypassing the same-origin BFF", async () => {
+  await withServer({ mode: "mock", developmentMode: true }, async (base) => {
+    const page = await fetch(`${base}/workspace-defaults`);
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get("content-security-policy"), /script-src 'self' 'unsafe-inline'/);
+    const html = await page.text();
+    assert.match(html, /\/@vite\/client/);
+    assert.match(html, /\/src\/main\.tsx/);
+
+    const api = await fetch(`${base}/admin-console-api/me`);
+    assert.equal(api.status, 200);
+    assert.deepEqual((await api.json()).actor.roles, ["platform-admin"]);
   });
 });
 
 test("self-hosts the management-console typography", async () => {
   await withServer({ mode: "mock" }, async (base) => {
-    const response = await fetch(`${base}/fonts/outfit-latin-600-normal.woff2`);
+    const html = await (await fetch(`${base}/`)).text();
+    const stylesheetPaths = [...html.matchAll(/href="(\/assets\/[^"]+\.css)"/g)].map((match) => match[1]);
+    assert.ok(stylesheetPaths.length);
+    const stylesheets = await Promise.all(stylesheetPaths.map(async (path) => (await fetch(`${base}${path}`)).text()));
+    const fontFile = stylesheets.join("\n").match(/outfit-latin-600-normal-[^)'"\/]+\.woff2/)?.[0];
+    assert.ok(fontFile);
+    const response = await fetch(`${base}/assets/${fontFile}`);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("content-type"), "font/woff2");
     assert.match(response.headers.get("cache-control"), /immutable/);
@@ -255,12 +281,18 @@ test("mock admin audit applies every supported filter before pagination", async 
     const byWorkspace = await get("workspaceId=ws_atlas");
     assert.ok(byWorkspace.items.length > 0);
     assert.ok(byWorkspace.items.every((event) => event.workspaceId === "ws_atlas"));
+    const byWorkspaceName = await get("workspaceQuery=atlas");
+    assert.ok(byWorkspaceName.items.length > 0);
+    assert.ok(byWorkspaceName.items.every((event) => event.workspaceName.toLowerCase().includes("atlas")));
+    const byWorkspaceQueryId = await get("workspaceQuery=ws_atlas");
+    assert.ok(byWorkspaceQueryId.items.length > 0);
+    assert.ok(byWorkspaceQueryId.items.every((event) => event.workspaceId === "ws_atlas"));
     const byActor = await get("adminActorSubject=mock-platform-admin");
     assert.equal(byActor.items.length, 3);
     assert.equal((await get("adminActorSubject=unknown")).items.length, 0);
     assert.equal((await get("outcome=failure")).items.length, 0);
     const byStart = await get(`from=${encodeURIComponent("2026-07-15T00:00:00Z")}`);
-    assert.deepEqual(byStart.items.map((event) => event.workspaceId), ["ws_lumen"]);
+    assert.deepEqual(byStart.items.map((event) => event.workspaceId), ["ws_atlas"]);
     const byEnd = await get(`to=${encodeURIComponent("2026-07-14T14:02:59Z")}`);
     assert.deepEqual(byEnd.items.map((event) => event.workspaceId), ["ws_atlas"]);
     const combined = await get("workspaceId=ws_atlas&action=admin.member.role.update&outcome=success&limit=1");
@@ -400,6 +432,31 @@ test("mock platform LLM defaults are write-only and support replace and delete",
     });
     assert.equal(deletedResponse.status, 200);
     assert.equal((await deletedResponse.json()).providers.find((provider) => provider.provider === "anthropic").configured, false);
+  });
+});
+
+test("mock workspace defaults persist reversible enabled state without deleting the entry", async () => {
+  await withServer({ mode: "mock" }, async (base) => {
+    const csrf = await fetch(`${base}/admin-console-api/auth/csrf`).then((response) => response.json());
+    const initial = await fetch(`${base}/admin-console-api/workspace-defaults?kind=mcp_server`)
+      .then((response) => response.json());
+    const github = initial.items.find((item) => item.name === "GitHub");
+    assert.equal(github.enabled, true);
+
+    const updatedResponse = await fetch(`${base}/admin-console-api/workspace-defaults/${github.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", "x-csrf-token": csrf.csrfToken },
+      body: JSON.stringify({
+        enabled: false,
+        reason: "Pause GitHub for future workspaces"
+      })
+    });
+    assert.equal(updatedResponse.status, 200);
+    assert.equal((await updatedResponse.json()).enabled, false);
+
+    const after = await fetch(`${base}/admin-console-api/workspace-defaults?kind=mcp_server`)
+      .then((response) => response.json());
+    assert.equal(after.items.find((item) => item.id === github.id).enabled, false);
   });
 });
 

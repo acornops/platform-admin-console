@@ -20,6 +20,9 @@ test("allows only documented query parameters per route", () => {
   const members = matchAdminRoute("GET", "/workspaces/ws_atlas/members");
   assert.equal(sanitizedAdminQuery(members, new URLSearchParams("limit=100&cursor=next")).toString(), "limit=100&cursor=next");
   assert.equal(sanitizedAdminQuery(members, new URLSearchParams("q=ignored")), null);
+  const audit = matchAdminRoute("GET", "/admin-audit-events");
+  assert.equal(sanitizedAdminQuery(audit, new URLSearchParams("workspaceQuery=Atlas+Research")).toString(), "workspaceQuery=Atlas+Research");
+  assert.equal(sanitizedAdminQuery(audit, new URLSearchParams("workspaceName=Atlas")), null);
 });
 
 test("rejects broad and operational credentials", () => {
@@ -46,14 +49,17 @@ test("projects workspace and audit responses to the confidentiality boundary", (
 
   const auditRoute = matchAdminRoute("GET", "/admin-audit-events");
   const audit = projectAdminResponse(auditRoute, { items: [
-    { id: "1", action: "admin.workspace.plan.update", outcome: "success", workspaceId: "ws", workspaceName: "Atlas", requestId: "req", sourceIpHash: "hidden", userAgent: "hidden", metadata: { ticketRef: "AO-1", correlationId: "corr-1", secretPayload: "hidden" }, occurredAt: "2026-01-01T00:00:00Z" },
-    { id: "2", action: "admin.run.cancel", outcome: "success", targetId: "target", requestId: "req2", metadata: {}, occurredAt: "2026-01-01T00:00:00Z" }
+    { id: "1", action: "admin.workspace.plan.update", outcome: "success", workspaceId: "ws", workspaceName: "Atlas", subjectType: "user", subjectId: "usr_1", subjectDisplayName: "Maya Chen", requestId: "req", sourceIpHash: "hidden", userAgent: "hidden", metadata: { ticketRef: "AO-1", correlationId: "corr-1", secretPayload: "hidden" }, occurredAt: "2026-01-01T00:00:00Z" },
+    { id: "2", action: "admin.run.cancel", outcome: "success", targetId: "target", requestId: "req2", metadata: {}, occurredAt: "2026-01-01T00:00:00Z" },
+    { id: "3", action: "admin.system.workspace_default.read", outcome: "success", requestId: "req3", metadata: {}, occurredAt: "2026-01-01T00:00:00Z" },
+    { id: "4", action: "admin.admin_audit.search", outcome: "success", requestId: "req4", metadata: {}, occurredAt: "2026-01-01T00:00:00Z" }
   ] });
   assert.equal(audit.items.length, 1);
   assert.deepEqual(audit.items[0].metadata, { correlationId: "corr-1" });
   assert.equal("sourceIpHash" in audit.items[0], false);
   assert.equal("userAgent" in audit.items[0], false);
   assert.equal(audit.items[0].workspaceName, "Atlas");
+  assert.equal(audit.items[0].subjectDisplayName, "Maya Chen");
 });
 
 test("projects only typed platform setting state", () => {
@@ -202,6 +208,45 @@ test("allows only secret-free public workspace defaults", () => {
       reason: "Seed future workspaces"
     }
   });
+  const manualSkill = sanitizedAdminBody(create, {
+    kind: "skill",
+    availableIn: ["kubernetes", "agents"],
+    source: { type: "manual" },
+    files: [{ path: "SKILL.md", content: "---\nname: triage\ndescription: Triage incidents\n---\n" }],
+    reason: "Create manual platform skill"
+  });
+  assert.deepEqual(manualSkill, {
+    ok: true,
+    body: {
+      kind: "skill",
+      availableIn: ["agents", "kubernetes"],
+      source: { type: "manual" },
+      files: [{ path: "SKILL.md", content: "---\nname: triage\ndescription: Triage incidents\n---\n" }],
+      reason: "Create manual platform skill"
+    }
+  });
+  assert.equal(sanitizedAdminBody(create, {
+    ...manualSkill.body,
+    source: { type: "manual", secret: "must-not-pass" }
+  }).ok, false);
+  const patch = matchAdminRoute("PATCH", "/workspace-defaults/default-1");
+  assert.deepEqual(sanitizedAdminBody(patch, {
+    enabled: false,
+    reason: "Pause future workspace initialization"
+  }), {
+    ok: true,
+    body: {
+      enabled: false,
+      reason: "Pause future workspace initialization"
+    }
+  });
+  assert.equal(sanitizedAdminBody(patch, {
+    reason: "Reject empty update"
+  }).ok, false);
+  assert.equal(sanitizedAdminBody(patch, {
+    enabled: "false",
+    reason: "Reject invalid status"
+  }).ok, false);
   for (const endpoint of [
     "https://localhost/mcp",
     "https://127.0.0.1/mcp",
@@ -240,7 +285,24 @@ test("allows only secret-free public workspace defaults", () => {
   });
   assert.equal("apiBaseUrl" in projected.items[0].source, false);
   assert.equal("files" in projected.items[0], false);
+  assert.equal(projected.items[0].enabled, true);
   assert.doesNotMatch(JSON.stringify(projected), /must-not-leak|github\.internal/);
+  const projectedManual = projectAdminResponse(list, {
+    items: [{
+      id: "default-2",
+      kind: "skill",
+      name: "Manual triage",
+      description: "Triage incidents",
+      availableIn: ["agents"],
+      source: { type: "manual", secret: "must-not-leak" },
+      files: [{ path: "SKILL.md", content: "must-not-leak" }],
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z"
+    }]
+  });
+  assert.deepEqual(projectedManual.items[0].source, { type: "manual" });
+  assert.equal("files" in projectedManual.items[0], false);
+  assert.doesNotMatch(JSON.stringify(projectedManual), /must-not-leak/);
 });
 
 test("denies operational, tenant-audit, arbitrary, and wrong-method routes", () => {

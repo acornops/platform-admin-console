@@ -6,7 +6,10 @@ const { port } = server.address();
 try {
   for (const path of ["/", "/workspaces", "/users", "/settings", "/settings/workspace", "/settings/ai", "/workspace-defaults", "/audit"]) {
     const response = await fetch(`http://127.0.0.1:${port}${path}`);
-    if (!response.ok || !(await response.text()).includes("Platform Admin")) throw new Error(`Static route failed: ${path}`);
+    const html = await response.text();
+    if (!response.ok || !html.includes('data-console="platform-admin"') || !html.includes('<div id="root"></div>')) {
+      throw new Error(`Static route failed: ${path}`);
+    }
   }
   const workspaces = await fetch(`http://127.0.0.1:${port}/admin-console-api/workspaces`);
   if (!workspaces.ok || (await workspaces.json()).items.length < 1) throw new Error("Workspace API smoke failed");

@@ -39,8 +39,9 @@ The console has one runtime service dependency: `control-plane`. It does not cal
   membership. The MCP browser request contains only name, HTTPS endpoint,
   destinations, and reason; the BFF injects the producer's `none`
   authentication compatibility value and never projects MCP authentication
-  metadata back to the browser. Skill import accepts a bounded pinned Markdown
-  snapshot from the browser and never returns bundle contents.
+  metadata back to the browser. Skill creation accepts a bounded manual
+  Markdown bundle, while skill import accepts a bounded pinned public
+  GitHub/GitLab snapshot. Neither flow returns bundle contents.
 
 ## Control-Plane Boundary Notes
 
@@ -50,6 +51,15 @@ The console has one runtime service dependency: `control-plane`. It does not cal
 - Workspace operational summaries and operational admin-audit actions are removed even if the producer returns them.
 - Admin audit attribution identifies the authenticated human from immutable OIDC issuer and subject fields, with display name and email snapshots for readability. The BFF workload token remains separate credential evidence.
 - Workspace creator and admin-audit object labels are optional producer fields. The BFF projects them explicitly; the browser prefers the readable label and falls back to the immutable creator or workspace ID.
+- The Admin Audit workspace field sends `workspaceQuery`, which the producer
+  matches against an exact workspace ID or a case-insensitive literal workspace
+  name substring. The BFF retains `workspaceId` only for compatible existing
+  callers.
+- The producer persists authentication lifecycle events and privileged mutation
+  requests, successes, and failures. Read-only admin requests use structured
+  HTTP access logs and do not create new Admin Audit records. Legacy read/search
+  rows remain stored as append-only evidence but are excluded from producer
+  results and defensively removed by the BFF projection.
 - The mock store emits producer-shaped DTOs before the same projection is applied.
 - All accepted deviations are tracked in `DESIGN.md`.
 

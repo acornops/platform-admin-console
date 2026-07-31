@@ -3,25 +3,46 @@
   "version": "0.0.1-experimental.3",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "dev": "node server.mjs",
+    "prepare": "npm run ui:build",
+    "dev": "node server.mjs --dev",
     "start": "node server.mjs",
-    "build": "node scripts/build.mjs",
-    "lint": "node --check server.mjs && node --check lib/admin-route-policy.mjs && node --check lib/admin-contract.mjs && node --check lib/mock-admin-store.mjs && node --check lib/mock-workspace-defaults.mjs && node --check public/theme-init.js && node --check public/account-menu.js && node --check public/app.js && node --check public/audit-page.js && node --check public/overview-view.js && node --check public/platform-settings-page.js && node --check public/git-skill-import.js && node --check public/workspace-defaults-page.js && node --check public/user-directory.js && node --check public/user-panel-view.js && node --check public/user-membership-actions.js && node --check public/workspace-directory.js && node --check public/workspace-member-index.js && node --check public/workspace-panel-view.js && node --check public/workspace-access-actions.js && node --check public/menu-controls.js && node --check public/toast.js && node --check scripts/check-requirements.mjs",
-    "test": "node --test",
-    "test:coverage": "node --experimental-test-coverage --test-coverage-exclude=public/** --test-coverage-lines=80 --test-coverage-branches=65 --test-coverage-functions=80 --test",
+    "prebuild": "npm run ui:build",
+    "build": "vite build",
+    "lint": "npm run ui:typecheck && tsc --noEmit && node --check server.mjs && node --check lib/admin-route-policy.mjs && node --check lib/admin-contract.mjs && node --check lib/mock-admin-store.mjs && node --check lib/mock-workspace-defaults.mjs && node --check scripts/check-requirements.mjs",
+    "test": "node --import tsx --test",
+    "test:coverage": "node --import tsx --experimental-test-coverage --test-coverage-exclude=src/** --test-coverage-exclude=packages/** --test-coverage-lines=80 --test-coverage-branches=65 --test-coverage-functions=80 --test",
     "contracts:check": "node scripts/check-contracts.mjs",
     "requirements:check": "node scripts/check-requirements.mjs",
     "harness:check": "node scripts/check-harness.mjs",
     "smoke:routes": "node scripts/smoke-routes.mjs",
     "validate": "npm run lint && npm test && npm run contracts:check && npm run requirements:check && npm run harness:check && npm run build && npm run smoke:routes",
-    "validate:ci": "npm run lint && npm run test:coverage && npm run contracts:check && npm run requirements:check && npm run harness:check && npm run build && npm run smoke:routes"
+    "validate:ci": "npm run lint && npm run test:coverage && npm run contracts:check && npm run requirements:check && npm run harness:check && npm run build && npm run smoke:routes",
+    "ui:build": "npm run build -w @acornops/ui",
+    "ui:typecheck": "npm run typecheck -w @acornops/ui"
   },
   "dependencies": {
-    "@fontsource/outfit": "^5.2.8",
-    "@fontsource/ubuntu-mono": "^5.2.8"
+    "@acornops/ui": "workspace:*",
+    "lucide-react": "^0.575.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.20.6",
+    "typescript": "~5.8.2",
+    "vite": "^6.4.3"
   }
 }

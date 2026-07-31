@@ -14,7 +14,7 @@ test("accepts the checked-in current requirements baseline", () => {
 test("fails when a superseded user workflow is reintroduced", () => {
   const read = (relativePath) => {
     const content = readFileSync(path.join(root, relativePath), "utf8");
-    return relativePath === "public/app.js" ? `${content}\nconst removedAction = "Revoke active sessions";` : content;
+    return relativePath === "src/App.tsx" ? `${content}\nconst removedAction = "Revoke active sessions";` : content;
   };
   const failures = validateRequirementsBaseline({ root, read });
   assert.ok(failures.some((failure) => failure.includes("EXC-001") && failure.includes("Revoke active sessions")));

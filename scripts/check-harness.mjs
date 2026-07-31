@@ -89,13 +89,16 @@ expect(packageJson.name === "@acornops/platform-admin-console", "package name mu
 expect(packageJson.version === "0.0.1-experimental.3", "release version must remain explicit");
 for (const script of ["lint", "test", "test:coverage", "contracts:check", "requirements:check", "harness:check", "build", "smoke:routes", "validate", "validate:ci"]) expect(Boolean(packageJson.scripts?.[script]), `Missing package script ${script}`);
 for (const threshold of ["--test-coverage-lines=80", "--test-coverage-branches=65", "--test-coverage-functions=80"]) includes(packageJson.scripts["test:coverage"], threshold, "Coverage threshold");
-includes(packageJson.scripts["test:coverage"], "--test-coverage-exclude=public/**", "Coverage runtime scope");
+for (const excludedRoot of ["--test-coverage-exclude=src/**", "--test-coverage-exclude=packages/**"]) {
+  includes(packageJson.scripts["test:coverage"], excludedRoot, "Coverage runtime scope");
+}
 includes(development, "Browser modules are covered by focused UI requirement tests and live-browser verification", "Development coverage boundary");
 for (const needle of ["npm test", "npm run contracts:check", "npm run requirements:check", "npm run harness:check", "npm run build", "npm run smoke:routes"]) includes(packageJson.scripts.validate, needle, "Canonical validate script");
 includes(packageJson.scripts["validate:ci"], "npm run requirements:check", "Canonical CI validate script");
 for (const needle of ["permissions:", "contents: read", "node-version: \"22\"", "npm ci", "npm run validate:ci", "npm audit --omit=dev", "timeout-minutes:"]) includes(ci, needle, "CI workflow");
 for (const needle of ["verify-ci:", "packages: write", "package.json", "docker/build-push-action@v6", "provenance: true", "sbom: true"]) includes(release, needle, "Release workflow");
-for (const needle of ["FROM node:22-alpine@sha256:", "ENV HOST=0.0.0.0", "USER node"]) includes(dockerfile, needle, "Production image policy");
+for (const needle of ["AS build", "npm ci --ignore-scripts", "npm run build", "AS runtime", "COPY --from=build /app/dist ./dist", "ENV HOST=0.0.0.0", "USER node"]) includes(dockerfile, needle, "Production image policy");
+expect(!dockerfile.includes("npm ci --omit=dev"), "Production image must compile workspace packages before creating the dependency-free runtime image");
 
 for (const needle of ["requiredScope", "queryParams", "sanitizedAdminQuery", "/admin/v1/admin-audit-events"]) includes(policy, needle, "Route policy");
 for (const needle of ["ALLOWED_ADMIN_SCOPES", "validateAdminIdentity", "projectAdminResponse", "allowedAuditPrefixes", "allowedAuditMetadata"]) includes(contractProjection, needle, "Contract projection");
@@ -109,12 +112,12 @@ function walk(directory) {
     const relative = path.join(directory, entry);
     const stat = statSync(path.join(root, relative));
     if (stat.isDirectory()) files.push(...walk(relative));
-    else if (/\.(?:js|mjs)$/.test(entry)) files.push(relative);
+    else if (/\.(?:js|mjs|ts|tsx)$/.test(entry)) files.push(relative);
   }
   return files;
 }
-const budgets = new Map([["public/app.js", 425], ["lib/mock-admin-store.mjs", 400]]);
-for (const file of ["server.mjs", ...walk("lib"), ...walk("public"), ...walk("scripts")]) {
+const budgets = new Map([["src/App.tsx", 425], ["packages/ui/src/Combobox.tsx", 300], ["packages/ui/src/DataTable.tsx", 300], ["packages/ui/src/ModalIsolation.ts", 275], ["packages/ui/src/Select.tsx", 275], ["lib/mock-admin-store.mjs", 400]]);
+for (const file of ["server.mjs", ...walk("lib"), ...walk("src"), ...walk("packages/ui/src"), ...walk("public"), ...walk("scripts")]) {
   const count = read(file).split("\n").length;
   const budget = budgets.get(file) || 650;
   expect(count <= budget, `${file} has ${count} lines; budget is ${budget}. Extract a focused module.`);

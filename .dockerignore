@@ -2,6 +2,7 @@
 .github
 .agents
 node_modules
+dist
 test
 docs
 scripts

@@ -10,15 +10,7 @@ import { projectAdminResponse, validateAdminIdentity } from "./lib/admin-contrac
 import { createMockAdminStore } from "./lib/mock-admin-store.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
-const publicRoot = join(root, "public");
-const FONT_FILES = new Map([
-  ["/fonts/outfit-latin-400-normal.woff2", "node_modules/@fontsource/outfit/files/outfit-latin-400-normal.woff2"],
-  ["/fonts/outfit-latin-500-normal.woff2", "node_modules/@fontsource/outfit/files/outfit-latin-500-normal.woff2"],
-  ["/fonts/outfit-latin-600-normal.woff2", "node_modules/@fontsource/outfit/files/outfit-latin-600-normal.woff2"],
-  ["/fonts/outfit-latin-700-normal.woff2", "node_modules/@fontsource/outfit/files/outfit-latin-700-normal.woff2"],
-  ["/fonts/ubuntu-mono-latin-400-normal.woff2", "node_modules/@fontsource/ubuntu-mono/files/ubuntu-mono-latin-400-normal.woff2"],
-  ["/fonts/ubuntu-mono-latin-700-normal.woff2", "node_modules/@fontsource/ubuntu-mono/files/ubuntu-mono-latin-700-normal.woff2"]
-]);
+const staticRoot = join(root, "dist");
 const API_PREFIX = "/admin-console-api";
 const ADMIN_AUTH_PREFIX = "/admin-auth";
 const ADMIN_AUTH_ROUTE_DEFINITIONS = Object.freeze([
@@ -38,11 +30,18 @@ const SECURITY_HEADERS = Object.freeze({
   "x-content-type-options": "nosniff",
   "x-frame-options": "DENY"
 });
+const DEVELOPMENT_SECURITY_HEADERS = Object.freeze({
+  ...SECURITY_HEADERS,
+  "content-security-policy": SECURITY_HEADERS["content-security-policy"]
+    .replace("script-src 'self'", "script-src 'self' 'unsafe-inline'")
+    .replace("style-src 'self'", "style-src 'self' 'unsafe-inline'")
+});
 
 export { ADMIN_ROUTE_DEFINITIONS, matchAdminRoute };
 
 export function createAdminConsoleServer(options = {}) {
   const mode = options.mode || process.env.ADMIN_CONSOLE_DATA_MODE || "mock";
+  const developmentMode = options.developmentMode === true;
   const requireHumanIdentity = (options.nodeEnv || process.env.NODE_ENV) === "production";
   if (requireHumanIdentity && mode !== "control-plane") {
     throw new Error("Production platform admin console requires ADMIN_CONSOLE_DATA_MODE=control-plane");
@@ -55,15 +54,17 @@ export function createAdminConsoleServer(options = {}) {
   // only workload scopes; user identity remains isolated in the control-plane
   // session carried by each browser request.
   const credentialState = { scopes: null };
+  let viteDevServerPromise;
+  let server;
 
-  return createServer(async (request, response) => {
+  server = createServer(async (request, response) => {
     const startedAt = process.hrtime.bigint();
     const requestId = safeRequestId(request.headers["x-request-id"]);
     request.headers["x-request-id"] = requestId;
     response.setHeader("x-request-id", requestId);
     response.once("finish", () => logRequest({ request, response, requestId, startedAt }));
     try {
-      setHeaders(response, SECURITY_HEADERS);
+      setHeaders(response, developmentMode ? DEVELOPMENT_SECURITY_HEADERS : SECURITY_HEADERS);
       const url = new URL(request.url || "/", "http://console.local");
       if (url.pathname === "/health/live") {
         if (request.method !== "GET") {
@@ -93,9 +94,42 @@ export function createAdminConsoleServer(options = {}) {
         sendJson(response, 405, apiError("METHOD_NOT_ALLOWED", "Method not allowed"));
         return;
       }
+      if (developmentMode) {
+        viteDevServerPromise ||= createViteDevServer(server);
+        const viteDevServer = await viteDevServerPromise;
+        viteDevServer.middlewares(request, response, (error) => {
+          if (error) {
+            if (response.headersSent) response.destroy(error);
+            else sendJson(response, 500, apiError("DEVELOPMENT_ASSET_FAILED", "Development asset request failed"));
+          } else if (!response.writableEnded) {
+            sendJson(response, 404, apiError("NOT_FOUND", "Not found"));
+          }
+        });
+        return;
+      }
       await serveStatic(response, url.pathname);
     } catch (error) {
       sendJson(response, error?.statusCode || 500, apiError(error?.publicCode || "REQUEST_FAILED", error?.publicMessage || "Request failed"));
+    }
+  });
+
+  server.once("close", () => {
+    if (viteDevServerPromise) void viteDevServerPromise.then((viteDevServer) => viteDevServer.close()).catch(() => {});
+  });
+  return server;
+}
+
+async function createViteDevServer(server) {
+  const { createServer: createViteServer } = await import("vite");
+  return createViteServer({
+    root,
+    appType: "spa",
+    server: {
+      middlewareMode: { server },
+      watch: process.env.CHOKIDAR_USEPOLLING === "true" ? { usePolling: true } : undefined
+    },
+    resolve: {
+      alias: [{ find: /^@acornops\/ui$/, replacement: join(root, "packages/ui/src/index.ts") }]
     }
   });
 }
@@ -470,24 +504,16 @@ async function readJsonBody(request) {
 }
 
 async function serveStatic(response, pathname) {
-  const fontFile = FONT_FILES.get(pathname);
-  if (fontFile) {
-    const file = await readFile(join(root, fontFile));
-    setHeaders(response, { "cache-control": "public, max-age=31536000, immutable" });
-    response.writeHead(200, { "content-type": "font/woff2" });
-    response.end(file);
-    return;
-  }
   const requested = pathname === "/" ? "/index.html" : pathname;
   const safePath = normalize(requested).replace(/^(\.\.[/\\])+/, "");
-  let filePath = join(publicRoot, safePath);
+  let filePath = join(staticRoot, safePath);
   try {
     const file = await readFile(filePath);
-    setHeaders(response, { "cache-control": "no-store" });
+    setHeaders(response, { "cache-control": pathname.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-store" });
     response.writeHead(200, { "content-type": contentType(filePath) });
     response.end(file);
   } catch {
-    filePath = join(publicRoot, "index.html");
+    filePath = join(staticRoot, "index.html");
     const file = await readFile(filePath);
     setHeaders(response, { "cache-control": "no-store" });
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
@@ -496,7 +522,7 @@ async function serveStatic(response, pathname) {
 }
 
 function contentType(pathname) {
-  return ({ ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".woff2": "font/woff2" })[extname(pathname)] || "application/octet-stream";
+  return ({ ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".woff": "font/woff", ".woff2": "font/woff2", ".png": "image/png" })[extname(pathname)] || "application/octet-stream";
 }
 
 function ensureTrailingSlash(value) { return value.endsWith("/") ? value : `${value}/`; }
@@ -524,14 +550,12 @@ function logRequest({ request, response, requestId, startedAt }) {
       ? authDefinition.path
       : pathname === ADMIN_AUTH_PREFIX || pathname.startsWith(`${ADMIN_AUTH_PREFIX}/`)
         ? `${ADMIN_AUTH_PREFIX}/denied`
-    : browserPath === "/auth/csrf"
-      ? `${API_PREFIX}/auth/csrf`
-      : matched
-        ? `${API_PREFIX}${matched.browserPattern}`
-        : pathname.startsWith(API_PREFIX)
-          ? `${API_PREFIX}/denied`
-          : pathname.startsWith("/fonts/")
-            ? "/fonts/:asset"
+        : browserPath === "/auth/csrf"
+          ? `${API_PREFIX}/auth/csrf`
+        : matched
+          ? `${API_PREFIX}${matched.browserPattern}`
+          : pathname.startsWith(API_PREFIX)
+            ? `${API_PREFIX}/denied`
             : "/static";
   const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
   process.stdout.write(`${JSON.stringify({
@@ -557,7 +581,7 @@ const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv
 if (isMain) {
   const port = Number(process.env.PORT || 4173);
   const host = process.env.HOST || "127.0.0.1";
-  createAdminConsoleServer().listen(port, host, () => {
+  createAdminConsoleServer({ developmentMode: process.argv.includes("--dev") }).listen(port, host, () => {
     process.stdout.write(`AcornOps Platform Admin Console listening on http://${host}:${port}\n`);
   });
 }

@@ -1,5 +1,12 @@
 # Completed Execution Plans
 
+- [Admin Audit Event Sentences](admin-audit-event-sentences.md)
+- [Admin Audit Readability](admin-audit-readability.md)
+- [Admin Audit Workspace Query](admin-audit-workspace-query.md)
+- [Mutation-Only Admin Audit](mutation-only-admin-audit.md)
+- [Read Audit Remnant Cleanup](read-audit-remnant-cleanup.md)
+- [Platform UI Fidelity Pass](platform-ui-fidelity-pass.md)
+- [React, Tailwind, and shared UI migration](react-tailwind-ui-migration.md)
 - [Account menu and audit actor](account-menu-and-audit-actor.md)
 - [Align workspace directory and details with Users](workspace-directory-parity.md)
 - [Grant existing user workspace access](grant-existing-user-workspace-access.md)
@@ -7,6 +14,8 @@
 - [Platform settings management alignment](platform-settings-management-alignment.md)
 - [LLM key settings polish](llm-key-settings-polish.md)
 - [LLM key card UI restore](llm-key-card-ui-restore.md)
+- [Manual Skill Defaults](manual-skill-defaults.md)
+- [Manual Skill Create Wizard](manual-skill-create-wizard.md)
 
 These plans preserve delivery history. They are not current requirements and may describe interactions that were later removed or replaced. Use [`../../product-specs/current-requirements.md`](../../product-specs/current-requirements.md) and [`../../../DESIGN.md`](../../../DESIGN.md) for the accepted baseline.
 
