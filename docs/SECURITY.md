@@ -14,10 +14,10 @@ The console is for platform governance, not tenant operations. Platform administ
 - MCP-default browser payloads cannot supply authentication fields, headers, or
   credentials. Authentication remains in each workspace's MCP setup, and the
   BFF strips upstream MCP authentication metadata from responses.
-- CSP permits browser Git snapshot reads only from `api.github.com` and
-  `gitlab.com`. Import requests omit browser credentials, reject redirects, do
-  not send referrers, and bypass browser caches; private Git hosts and custom
-  API bases are rejected before network access.
+- CSP keeps Git import same-origin. The browser sends one HTTPS URL through a
+  fixed BFF route; the control plane checks the deployment Git-host allowlist
+  before making an anonymous, redirect-rejecting provider request. Git
+  credentials and API bases never enter browser state.
 - Platform-admin mutations require an attributable audit record.
 - Production requests require both the internal BFF credential and a human OIDC admin session with one of three fixed roles.
 - Password login is not exposed; MFA assurance and recent authentication are enforced by the control plane.

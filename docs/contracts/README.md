@@ -39,8 +39,14 @@ The console has one runtime service dependency: `control-plane`. It does not cal
   membership. The MCP browser request contains only name, HTTPS endpoint,
   destinations, and reason; the BFF injects the producer's `none`
   authentication compatibility value and never projects MCP authentication
-  metadata back to the browser. Skill import accepts a bounded pinned Markdown
-  snapshot from the browser and never returns bundle contents.
+  metadata back to the browser. Skill import submits one Git URL through a
+  fixed same-origin resolver route. The control plane checks its
+  deployment-owned host allowlist and returns a bounded pinned Markdown
+  snapshot only for the explicit create flow; persisted bundle contents are
+  never returned by list or mutation projections.
+- Deploy the control-plane resolver before this URL-only consumer. Pause legacy
+  custom-host imports during a mixed-version rollout because their
+  browser-supplied API bases are intentionally rejected by the new producer.
 
 ## Control-Plane Boundary Notes
 

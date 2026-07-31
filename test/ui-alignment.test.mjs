@@ -183,7 +183,10 @@ test("keeps workspace directory context while details and bounded actions open i
   assert.match(app, /confirmation\.value !== workspace\.name/);
   assert.match(app, /restoring \? "restore" : "suspend"/);
   assert.match(html, /id="dialog-cancel" type="button">Cancel<\/button>/);
-  assert.match(app, /dialogCancel\.addEventListener\("click", \(\) => dialog\.close\("cancel"\)\)/);
+  assert.match(app, /const requestCloseDialog = \(\) => \{[\s\S]*!dialogCancel\.disabled && !dialogClose\.disabled[\s\S]*dialog\.close\("cancel"\)/);
+  assert.match(app, /dialogCancel\.addEventListener\("click", requestCloseDialog\)/);
+  assert.match(app, /dialog\.addEventListener\("cancel", \(event\) => \{[\s\S]*event\.preventDefault\(\);[\s\S]*requestCloseDialog\(\)/);
+  assert.match(app, /event\.key === "Escape" && dialog\.open[\s\S]*event\.preventDefault\(\);[\s\S]*requestCloseDialog\(\);[\s\S]*return;/);
   const lifecycleStart = app.indexOf("function changeWorkspaceLifecycle");
   const lifecycleEnd = app.indexOf("function openDialog", lifecycleStart);
   const lifecycleFlow = app.slice(lifecycleStart, lifecycleEnd);

@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "lastReviewed": "2026-07-29",
+  "lastReviewed": "2026-07-31",
   "authority": "docs/product-specs/current-requirements.md",
   "expectedRuntime": {
-    "adminRouteCount": 25,
+    "adminRouteCount": 26,
     "allowedScopeCount": 8
   },
   "normativeSources": [
@@ -16,13 +16,12 @@
   "required": [
     {
       "id": "REQ-DEF-001",
-      "summary": "Capabilities seeds new workspaces once with MCP servers and skills using management-aligned dialogs, canonical multi-destination availability, public-Git pinned imports, fixed routes, and no credentials or built-in tools.",
+      "summary": "Capabilities seeds new workspaces once with MCP servers and skills using management-aligned dialogs, canonical multi-destination availability, configured-host URL-only pinned imports, fixed routes, and no credentials or built-in tools.",
       "evidence": [
         { "file": "public/index.html", "contains": ["href=\"/workspace-defaults\"", "data-route=\"workspace-defaults\"", "Capabilities"] },
-        { "file": "public/workspace-defaults-page.js", "contains": ["Capabilities", "Choose which capabilities are created in new workspaces.", "New workspaces are created with these defaults, while existing workspaces remain unchanged.", "Workspace users choose which servers to enable, then configure the appropriate credentials in their workspaces.", "Workspace users explicitly enable the skills they want to use.", "MCP servers", "Skills", "Available in", "class=\"button secondary defaults-add-action\"", "Import skill", "importSkillFromGit", "selectedDestinations", "Authentication stays in each workspace", "existing MCP setup", "virtual_machines"], "excludes": ["MCP servers are created disabled.", "Tools tab", "Readiness", "Revision", "authType", "authHeader", "publicHeaders", "credentialValue", "secretValue", "type=\"file\"", "apiBaseUrl"] },
-        { "file": "public/git-skill-import.js", "contains": ["github.com", "gitlab.com", "commitSha", "credentials: \"omit\"", "redirect: \"error\"", "referrerPolicy: \"no-referrer\""], "excludes": ["apiBaseUrl", "credentials: \"include\""] },
-        { "file": "lib/admin-route-policy.mjs", "contains": ["/admin/v1/system/workspace-defaults", "admin:system:read", "admin:system:write", "sanitizeWorkspaceDefaultCreate", "canonicalAvailability"], "excludes": ["configuration: { authType: \"none\" }", "function validPublicHeaders", "function validHeaderName", "admin:workspace-default:read", "admin:workspace-default:write"] },
-        { "file": "lib/admin-contract.mjs", "contains": ["projectWorkspaceDefault", "contentDigest", "admin:system:read", "admin:system:write"], "excludes": ["files: value.files", "content: value.content", "admin:workspace-default:read", "admin:workspace-default:write"] }
+        { "file": "public/workspace-defaults-page.js", "contains": ["Capabilities", "Choose which capabilities are created in new workspaces.", "New workspaces are created with these defaults, while existing workspaces remain unchanged.", "Workspace users choose which servers to enable, then configure the appropriate credentials in their workspaces.", "Workspace users explicitly enable the skills they want to use.", "MCP servers", "Skills", "Available in", "class=\"button secondary defaults-add-action\"", "Import skill", "workspace-defaults/resolve-skill", "selectedDestinations", "Authentication stays in each workspace", "existing MCP setup", "virtual_machines"], "excludes": ["MCP servers are created disabled.", "Tools tab", "Readiness", "Revision", "authType", "authHeader", "publicHeaders", "credentialValue", "secretValue", "type=\"file\"", "apiBaseUrl", "name=\"provider\"", "name=\"ref\"", "name=\"subpath\""] },
+        { "file": "lib/admin-route-policy.mjs", "contains": ["/admin/v1/system/workspace-defaults", "/admin/v1/system/workspace-defaults/resolve-skill", "validGitImportUrl", "admin:system:read", "admin:system:write", "sanitizeWorkspaceDefaultCreate", "canonicalAvailability"], "excludes": ["configuration: { authType: \"none\" }", "function validPublicHeaders", "function validHeaderName", "admin:workspace-default:read", "admin:workspace-default:write"] },
+        { "file": "lib/admin-contract.mjs", "contains": ["projectWorkspaceDefault", "projectResolvedGitSkill", "contentDigest", "admin:system:read", "admin:system:write"], "excludes": ["files: value.files", "content: value.content", "admin:workspace-default:read", "admin:workspace-default:write"] }
       ]
     },
     {

@@ -73,14 +73,13 @@ window.addEventListener("popstate", () => {
 menuButton.addEventListener("click", () => toggleMenu(!sidebar.classList.contains("open")));
 scrim.addEventListener("click", () => toggleMenu(false));
 dialogForm.addEventListener("submit", handleDialogSubmit);
-dialogCancel.addEventListener("click", () => dialog.close("cancel")); dialogClose.addEventListener("click", () => dialog.close("cancel"));
-dialog.addEventListener("close", () => { state.dialogAction = null; });
+const requestCloseDialog = () => { if (!dialogCancel.disabled && !dialogClose.disabled) dialog.close("cancel"); }; dialogCancel.addEventListener("click", requestCloseDialog); dialogClose.addEventListener("click", requestCloseDialog);
+dialog.addEventListener("cancel", (event) => { event.preventDefault(); requestCloseDialog(); }); dialog.addEventListener("close", () => { state.dialogAction = null; });
 userPanelClose.addEventListener("click", requestCloseUserPanel);
 userPanelLayer.addEventListener("mousedown", (event) => { if (event.target === userPanelLayer) requestCloseUserPanel(); });
 workspacePanelClose.addEventListener("click", requestCloseWorkspacePanel);
 workspacePanelLayer.addEventListener("mousedown", (event) => { if (event.target === workspacePanelLayer) requestCloseWorkspacePanel(); });
-await loadIdentity();
-await router();
+await loadIdentity(); await router();
 async function router() {
   toggleMenu(false);
   cleanupMenuControls(main);
@@ -416,6 +415,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && event.target.matches("tr[data-user-id]")) openUserPanel(event.target.dataset.userId, { updateHistory: true, trigger: event.target });
   if (event.key === "Enter" && event.target.matches("tr[data-workspace-id]")) openWorkspacePanel(event.target.dataset.workspaceId, { updateHistory: true, trigger: event.target });
   if (event.key === "Enter" && event.target.matches("tr[data-href]")) navigate(event.target.dataset.href);
+  if (event.key === "Escape" && dialog.open) { event.preventDefault(); requestCloseDialog(); return; }
   if (event.key === "Escape" && !workspacePanelLayer.hidden && !dialog.open) requestCloseWorkspacePanel();
   else if (event.key === "Escape" && !userPanelLayer.hidden && !dialog.open) requestCloseUserPanel();
   else if (event.key === "Escape") toggleMenu(false);

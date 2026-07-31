@@ -4,7 +4,7 @@ import { ADMIN_ROUTE_DEFINITIONS, isGovernanceOnlyUpstreamPath, matchAdminRoute,
 import { ALLOWED_ADMIN_SCOPES, FORBIDDEN_ADMIN_SCOPES, projectAdminResponse, validateAdminIdentity } from "../lib/admin-contract.mjs";
 
 test("all runtime routes use the admin namespace and governance-only nouns", () => {
-  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 25);
+  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 26);
   for (const route of ADMIN_ROUTE_DEFINITIONS) {
     assert.equal(isGovernanceOnlyUpstreamPath(route.upstreamTemplate), true, route.upstreamTemplate);
     assert.ok(ALLOWED_ADMIN_SCOPES.includes(route.requiredScope), route.requiredScope);
@@ -183,7 +183,7 @@ test("allows only write-only fixed provider default mutations", () => {
   assert.doesNotMatch(JSON.stringify(projected), /must-not-leak|secretName|apiKey/);
 });
 
-test("allows only secret-free public workspace defaults", () => {
+test("allows only secret-free workspace defaults", () => {
   const create = matchAdminRoute("POST", "/workspace-defaults");
   const valid = sanitizedAdminBody(create, {
     kind: "mcp_server",
@@ -241,6 +241,34 @@ test("allows only secret-free public workspace defaults", () => {
   assert.equal("apiBaseUrl" in projected.items[0].source, false);
   assert.equal("files" in projected.items[0], false);
   assert.doesNotMatch(JSON.stringify(projected), /must-not-leak|github\.internal/);
+
+  const skill = {
+    kind: "skill",
+    availableIn: ["agents"],
+    source: {
+      type: "git",
+      provider: "github",
+      repoUrl: "https://github.com/acornops/skills",
+      ref: "main",
+      subpath: "skills/triage",
+      commitSha: "0123456789abcdef0123456789abcdef01234567"
+    },
+    files: [{ path: "SKILL.md", content: "---\nname: Triage\ndescription: Triage incidents\n---\n" }],
+    reason: "Import platform skill"
+  };
+  assert.equal(sanitizedAdminBody(create, skill).ok, true);
+  assert.equal(sanitizedAdminBody(create, {
+    ...skill,
+    files: [{ path: "../SKILL.md", content: "invalid" }]
+  }).ok, false);
+  assert.equal(sanitizedAdminBody(create, {
+    ...skill,
+    files: [{ path: "reference.md", content: "# Missing root skill" }]
+  }).ok, false);
+  assert.equal(sanitizedAdminBody(create, {
+    ...skill,
+    source: { ...skill.source, ref: "main\nunsafe" }
+  }).ok, false);
 });
 
 test("denies operational, tenant-audit, arbitrary, and wrong-method routes", () => {

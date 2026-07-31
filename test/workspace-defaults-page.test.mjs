@@ -104,13 +104,60 @@ test("matches management add actions and keeps MCP creation credential-free", ()
   assert.doesNotMatch(source, /authType|authHeader|publicHeaders|Advanced options|name="credential"|name="secret"/);
 });
 
-test("uses automatic pinned Git import instead of manual bundle fields", () => {
+test("uses server-side configured-host resolution from one URL", () => {
   const source = readFileSync(new URL("../public/workspace-defaults-page.js", import.meta.url), "utf8");
-  assert.match(source, /importSkillFromGit/);
-  assert.match(source, /public GitHub or GitLab repository/);
-  assert.match(source, /source: imported\.source/);
+  assert.match(source, /workspace-defaults\/resolve-skill/);
+  assert.match(source, /Git host configured for this deployment/);
+  assert.match(source, /source: \{ type: "git", \.\.\.imported\.source \}/);
   assert.match(source, /files: imported\.files/);
-  assert.doesNotMatch(source, /type="file"|Pinned commit SHA|apiBaseUrl/);
+  assert.match(source, /maxlength="2048"/);
+  assert.match(source, /aria-describedby="default-repoUrl-help"/);
+  assert.match(source, /Provider, ref, and subpath are detected automatically/);
+  assert.doesNotMatch(source, /type="file"|Pinned commit SHA|apiBaseUrl|name="provider"|name="ref"|name="subpath"/);
+});
+
+test("allows one safe URL through the fixed skill resolver route", () => {
+  const route = matchAdminRoute("POST", "/workspace-defaults/resolve-skill");
+  assert.equal(route.upstreamPath, "/admin/v1/system/workspace-defaults/resolve-skill");
+  assert.deepEqual(sanitizedAdminBody(route, {
+    repoUrl: "https://git.example.internal/acornops/skills/tree/main/incident"
+  }), {
+    ok: true,
+    body: { repoUrl: "https://git.example.internal/acornops/skills/tree/main/incident" }
+  });
+  assert.equal(sanitizedAdminBody(route, { repoUrl: "http://git.example/skill" }).ok, false);
+  assert.equal(sanitizedAdminBody(route, { repoUrl: "https://git.example/skill?token=secret" }).ok, false);
+
+  const projected = projectAdminResponse(route, {
+    files: [{ path: "SKILL.md", content: "---\nname: triage\n---" }],
+    source: {
+      provider: "gitlab",
+      repoUrl: "https://git.example.internal/acornops/skills",
+      ref: "main",
+      subpath: "incident",
+      commitSha: "0123456789abcdef0123456789abcdef01234567",
+      apiBaseUrl: "must-not-leak"
+    }
+  });
+  assert.equal(projected.source.provider, "gitlab");
+  assert.equal(projected.files[0].path, "SKILL.md");
+  assert.equal("apiBaseUrl" in projected.source, false);
+
+  assert.throws(() => projectAdminResponse(route, {
+    ...projected,
+    files: [{ path: "reference.md", content: "# Reference" }]
+  }), /Invalid resolved Git skill response/);
+  assert.throws(() => projectAdminResponse(route, {
+    ...projected,
+    source: { ...projected.source, repoUrl: "https://git.example/skills?token=secret" }
+  }), /Invalid resolved Git skill response/);
+  assert.throws(() => projectAdminResponse(route, {
+    ...projected,
+    files: [
+      { path: "SKILL.md", content: "---\nname: triage\n---" },
+      { path: "SKILL.md", content: "duplicate" }
+    ]
+  }), /Invalid resolved Git skill response/);
 });
 
 test("uses the shared management-style dialog anatomy and buttons", () => {

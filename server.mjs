@@ -29,7 +29,7 @@ const ADMIN_AUTH_ROUTE_DEFINITIONS = Object.freeze([
 ]);
 const MAX_BODY_BYTES = 196_608;
 const SECURITY_HEADERS = Object.freeze({
-  "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://api.github.com https://gitlab.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+  "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
   "cross-origin-opener-policy": "same-origin",
   "cross-origin-resource-policy": "same-origin",
   "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",

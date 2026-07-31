@@ -1,5 +1,3 @@
-import { importSkillFromGit } from "./git-skill-import.js";
-
 const TABS = ["mcp", "skills"];
 const DESTINATIONS = {
   agents: "Agents",
@@ -183,31 +181,24 @@ function openAddMcpDialog({ api, openDialog, showToast, rerender }) {
 function openImportSkillDialog({ api, openDialog, showToast, rerender }) {
   openDialog({
     title: "Import skill",
-    description: "Import a validated snapshot from a public GitHub or GitLab repository. Raw skill authoring remains outside Platform Admin.",
+    description: "Paste a full URL from a Git host configured for this deployment. Raw skill authoring remains outside Platform Admin.",
     submit: "Import skill",
     pendingLabel: "Importing skill…",
     size: "form",
-    fields: `${selectField("Provider", "provider", [["github", "GitHub"], ["gitlab", "GitLab"]])}
-      ${field("Repository URL", "repoUrl", "url", "https://github.com/openai/skills/tree/main/skills/.curated/example", true, "https://.*")}
-      <div class="dialog-form-grid">
-        ${field("Ref", "ref", "text", "Defaults to the repository branch")}
-        ${field("Subpath", "subpath", "text", "skills/example")}
-      </div>
+    fields: `${gitImportUrlField()}
       <div class="dialog-policy-note"><strong>Imported snapshot</strong><span>The selected ref is resolved to an immutable commit and only Markdown skill files are imported.</span></div>
       ${destinationField()}`,
     action: async (data) => {
-      const imported = await importSkillFromGit({
-        provider: data.get("provider"),
-        repoUrl: data.get("repoUrl"),
-        ref: data.get("ref"),
-        subpath: data.get("subpath")
+      const imported = await api("/workspace-defaults/resolve-skill", {
+        method: "POST",
+        body: { repoUrl: data.get("repoUrl") }
       });
       await api("/workspace-defaults", {
         method: "POST",
         body: {
           kind: "skill",
           availableIn: selectedDestinations(data),
-          source: imported.source,
+          source: { type: "git", ...imported.source },
           files: imported.files,
           reason: "Imported platform skill default"
         }
@@ -294,6 +285,14 @@ function canonicalDestinations(value) {
 
 function field(label, name, type, placeholder, required = false, pattern = "") {
   return `<div class="field"><label for="default-${name}">${escapeText(label)}</label><input class="input" id="default-${name}" name="${name}" type="${type}" placeholder="${escapeAttr(placeholder)}" ${required ? "required" : ""} ${pattern ? `pattern="${pattern}"` : ""}></div>`;
+}
+
+function gitImportUrlField() {
+  return `<div class="field">
+    <label for="default-repoUrl">Repository or skill URL</label>
+    <input class="input" id="default-repoUrl" name="repoUrl" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="2048" placeholder="https://github.com/openai/skills/tree/main/skills/.curated/example" pattern="https://[^?#]+" required aria-describedby="default-repoUrl-help">
+    <span class="action-hint" id="default-repoUrl-help">Use a repository, folder, or SKILL.md URL. Provider, ref, and subpath are detected automatically.</span>
+  </div>`;
 }
 
 function selectField(label, name, options) {

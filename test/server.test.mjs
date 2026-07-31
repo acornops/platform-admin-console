@@ -203,8 +203,8 @@ test("serves the application with security headers", async () => {
     assert.equal(response.status, 200);
     const csp = response.headers.get("content-security-policy");
     assert.match(csp, /frame-ancestors 'none'/);
-    assert.match(csp, /connect-src 'self' https:\/\/api\.github\.com https:\/\/gitlab\.com/);
-    assert.doesNotMatch(csp, /connect-src[^;]*https:(?:\s|;)/);
+    assert.match(csp, /connect-src 'self'/);
+    assert.doesNotMatch(csp, /connect-src[^;]*https:/);
     assert.equal(response.headers.get("x-frame-options"), "DENY");
     assert.equal(response.headers.get("strict-transport-security"), "max-age=31536000");
     assert.match(await response.text(), /Platform Admin/);
