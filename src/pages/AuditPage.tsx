@@ -248,7 +248,10 @@ export function AuditPage({ notify }: PageProps) {
               { value: '', label: 'All events' },
               { value: 'admin.workspace.plan.update', label: 'Changed Workspace Plan' },
               { value: 'group:workspace_status_modified', label: 'Modified Workspace Status' },
-              { value: 'group:workspace_access_modified', label: 'Modified Workspace Access' }
+              { value: 'group:workspace_access_modified', label: 'Modified User Access' },
+              { value: 'group:platform_settings_modified', label: 'Modified Workspace Defaults' },
+              { value: 'group:llm_provider_defaults_modified', label: 'Modified AI Providers Defaults' },
+              { value: 'group:workspace_defaults_modified', label: 'Modified Capabilities Defaults' }
             ]} />
             <TextInput value={filters.workspaceQuery} onChange={(event) => setFilters((current) => ({ ...current, workspaceQuery: event.target.value }))} placeholder="Workspace name or ID" aria-label="Filter by workspace name or ID" />
             <TextInput value={filters.adminActorSubject} onChange={(event) => setFilters((current) => ({ ...current, adminActorSubject: event.target.value }))} placeholder="Admin actor" aria-label="Filter by admin actor" />

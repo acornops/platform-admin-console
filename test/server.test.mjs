@@ -314,6 +314,47 @@ test("mock admin audit groups workspace access and status actions", async () => 
   });
 });
 
+test("mock admin audit settings groups align with their Platform Settings destinations", async () => {
+  await withServer({ mode: "mock" }, async (base) => {
+    const csrf = await fetch(`${base}/admin-console-api/auth/csrf`).then((response) => response.json());
+    const headers = { "content-type": "application/json", "x-csrf-token": csrf.csrfToken };
+    const settings = await fetch(`${base}/admin-console-api/settings`).then((response) => response.json());
+    const discovery = settings.items.find((setting) => setting.key === "member_discovery");
+    const aiPolicy = settings.items.find((setting) => setting.key === "ai_policy");
+
+    await fetch(`${base}/admin-console-api/settings/member_discovery`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ value: { mode: "directory" }, expectedVersion: discovery.version, reason: "Test Workspace defaults filter" })
+    });
+    await fetch(`${base}/admin-console-api/settings/ai_policy`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ value: aiPolicy.value, expectedVersion: aiPolicy.version, reason: "Test AI Providers defaults filter" })
+    });
+    await fetch(`${base}/admin-console-api/llm-provider-defaults/anthropic`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ apiKey: "must-never-be-returned", reason: "Test AI Providers defaults filter" })
+    });
+    const defaults = await fetch(`${base}/admin-console-api/workspace-defaults`).then((response) => response.json());
+    await fetch(`${base}/admin-console-api/workspace-defaults/${defaults.items[0].id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ availableIn: defaults.items[0].availableIn, reason: "Test Capabilities defaults filter" })
+    });
+
+    const workspace = await fetch(`${base}/admin-console-api/admin-audit-events?actionGroup=platform_settings_modified`).then((response) => response.json());
+    const ai = await fetch(`${base}/admin-console-api/admin-audit-events?actionGroup=llm_provider_defaults_modified`).then((response) => response.json());
+    const capabilities = await fetch(`${base}/admin-console-api/admin-audit-events?actionGroup=workspace_defaults_modified`).then((response) => response.json());
+
+    assert.deepEqual(workspace.items.map((event) => event.subjectId), ["member_discovery"]);
+    assert.deepEqual(new Set(ai.items.map((event) => `${event.subjectType}:${event.subjectId}`)), new Set(["llm_provider:anthropic", "platform_setting:ai_policy"]));
+    assert.ok(capabilities.items.length > 0);
+    assert.ok(capabilities.items.every((event) => event.action.startsWith("admin.system.workspace_default.")));
+  });
+});
+
 test("mock users support cursor pagination, identity search, and verification filters", async () => {
   await withServer({ mode: "mock" }, async (base) => {
     const first = await fetch(`${base}/admin-console-api/users?limit=2`).then((response) => response.json());

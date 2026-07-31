@@ -394,8 +394,11 @@ test('admin audit matches the two-row filter and event-led ledger reference', as
     readFile(new URL('../src/pages/AuditPage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
   ]);
-  for (const label of ['All events', 'Workspace name or ID', 'Admin actor', 'All outcomes', 'Today', 'Last 24h', 'Past 7d', 'Past 30d', 'Custom range', 'Clear', 'Apply filters']) {
+  for (const label of ['All events', 'Changed Workspace Plan', 'Modified Workspace Status', 'Modified User Access', 'Modified Workspace Defaults', 'Modified AI Providers Defaults', 'Modified Capabilities Defaults', 'Workspace name or ID', 'Admin actor', 'All outcomes', 'Today', 'Last 24h', 'Past 7d', 'Past 30d', 'Custom range', 'Clear', 'Apply filters']) {
     assert.match(audit, new RegExp(label));
+  }
+  for (const group of ['workspace_status_modified', 'workspace_access_modified', 'platform_settings_modified', 'llm_provider_defaults_modified', 'workspace_defaults_modified']) {
+    assert.match(audit, new RegExp(`group:${group}`));
   }
   assert.match(audit, /border-t border-ui-border pt-4/);
   assert.match(audit, /aria-controls="audit-custom-range"/);
