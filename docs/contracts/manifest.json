@@ -66,9 +66,15 @@
       ],
       "paginationShape": ["items", "nextCursor?"],
       "mutationFields": ["reason", "ticketRef?"],
-      "platformSettingKeys": ["member_discovery", "ai_policy", "user_sign_in_methods"],
+      "platformSettingKeys": ["member_discovery", "ai_policy", "user_sign_in_methods", "kubernetes_rbac_additions"],
       "platformSettingPatchFields": ["value", "expectedVersion", "reason"],
       "platformSettingResetFields": ["expectedVersion", "reason"],
+      "kubernetesRbacSetting": {
+        "effectiveFields": ["additions[].{key,name,description?,resources[].{apiGroup,apiVersion,resource,kind,scope,verbs[]}}"],
+        "deploymentDefaultFields": ["additions[].{key,name,description?,resources[].{apiGroup,apiVersion,resource,kind,scope,verbs[]}}"],
+        "overrideFields": ["upserts[].{key,name,description?,resources[].{apiGroup,apiVersion,resource,kind,scope,verbs[]}}", "disabledKeys[]"],
+        "resolution": "Deployment profiles are merged with complete admin upserts by stable key, then disabled keys are removed. Changes affect future onboarding only."
+      },
       "llmProviderDefaultStatusFields": ["provider", "configured", "enabled", "source=platform_default|none"],
       "llmProviderDefaultPutFields": ["apiKey(writeOnly)", "reason"],
       "llmProviderDefaultDeleteFields": ["reason"],

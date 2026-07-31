@@ -9,6 +9,12 @@ import {
 } from '@acornops/ui';
 import { AdminApiError, adminLoginPath, readableError } from '../src/api';
 import { administratorInitials, formatDateOnly, formatMembershipLifecycle, resolveRoute } from '../src/lib';
+import {
+  normalizeRbacProfileKey,
+  parseRbacResourcesYaml,
+  rbacProfileAccessVerbs,
+  rbacProfileRows
+} from '../src/components/KubernetesRbacAdditions';
 import { buildOverviewModel } from '../src/pages/OverviewPage';
 import { filterUsersByWorkspace } from '../src/pages/UsersPage';
 import {
@@ -33,6 +39,7 @@ test('resolves every platform route without a client routing dependency', () => 
   assert.deepEqual(resolveRoute('/workspaces/ws-1'), { name: 'workspaces', path: '/workspaces/ws-1', resourceId: 'ws-1' });
   assert.equal(resolveRoute('/settings').name, 'settings-workspace');
   assert.equal(resolveRoute('/settings/ai').name, 'settings-ai');
+  assert.equal(resolveRoute('/settings/kubernetes').name, 'settings-kubernetes');
   assert.equal(resolveRoute('/workspace-defaults').name, 'workspace-defaults');
   assert.equal(resolveRoute('/audit').name, 'audit');
 });
@@ -147,6 +154,37 @@ test('AI policy mutations preserve the legacy validation and summary normalizati
   });
   assert.equal(invalid.defaultModel, '');
   assert.equal(isAiPolicyMutationValid(invalid), false);
+});
+
+test('Kubernetes RBAC profiles preserve deployment sources and validate focused YAML', () => {
+  const resource = { apiGroup: 'postgresql.cnpg.io', apiVersion: 'v1', resource: 'clusters', kind: 'Cluster', scope: 'namespaced' as const, verbs: ['get', 'list', 'watch', 'create', 'patch', 'delete'] as const };
+  const deployment = { key: 'cnpg', name: 'CNPG', resources: [resource] };
+  const custom = { key: 'mongodb', name: 'MongoDB', resources: [{ ...resource, apiGroup: 'mongodbcommunity.mongodb.com', resource: 'mongodbcommunity', kind: 'MongoDBCommunity', verbs: ['list'] as const }] };
+  const rows = rbacProfileRows({
+    key: 'kubernetes_rbac_additions',
+    value: { additions: [custom] },
+    deploymentDefault: { additions: [deployment] },
+    overrideValue: { upserts: [custom], disabledKeys: ['cnpg'] },
+    version: 2,
+    editable: true
+  });
+
+  assert.deepEqual(rows.map((row) => [row.profile.key, row.source, row.disabled]), [
+    ['cnpg', 'deployment', true],
+    ['mongodb', 'admin', false]
+  ]);
+  assert.equal(normalizeRbacProfileKey('Mongo DB Operator'), 'mongo-db-operator');
+  assert.deepEqual(rbacProfileAccessVerbs(deployment), ['get', 'list', 'watch', 'create', 'patch', 'delete']);
+  assert.deepEqual(parseRbacResourcesYaml(`resources:\n  - apiGroup: postgresql.cnpg.io\n    apiVersion: v1\n    resource: clusters\n    kind: Cluster\n    scope: namespaced\n    verbs: [get, list, watch, create, patch, delete]\n`), [resource]);
+  assert.throws(() => parseRbacResourcesYaml(`resources:\n  - apiGroup: postgresql.cnpg.io\n    apiVersion: v1\n    resource: clusters\n    kind: Cluster\n    scope: namespaced\n    verbs: [patch]\n`), /must include list/);
+  assert.throws(() => parseRbacResourcesYaml(`resources:\n  - apiGroup: postgresql.cnpg.io\n    apiVersion: v1\n    resource: clusters\n    kind: Cluster\n    scope: namespaced\n    verbs: [list]\n  - apiGroup: backups.example.io\n    apiVersion: v1\n    resource: clusters\n    kind: BackupCluster\n    scope: namespaced\n    verbs: [list]\n`), /duplicates the plural clusters/);
+});
+
+test('Kubernetes RBAC onboarding copy and starter YAML stay conservative', async () => {
+  const source = await readFile(new URL('../src/components/KubernetesRbacAdditions.tsx', import.meta.url), 'utf8');
+  assert.match(source, /sm:whitespace-nowrap[^>]*>Maintain named custom-resource access profiles for future cluster onboarding\. Existing clusters are never changed\.<\/span>/);
+  assert.doesNotMatch(source, /Get, list, watch, create, patch, and delete are supported/);
+  assert.match(source, /verbs: RBAC_VERBS\.filter\(\(verb\) => verb !== 'delete'\)/);
 });
 
 test('capability destinations are canonical and bounded', () => {
@@ -394,7 +432,7 @@ test('admin audit matches the two-row filter and event-led ledger reference', as
     readFile(new URL('../src/pages/AuditPage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
   ]);
-  for (const label of ['All events', 'Changed Workspace Plan', 'Modified Workspace Status', 'Modified User Access', 'Modified Workspace Defaults', 'Modified AI Providers Defaults', 'Modified Capabilities Defaults', 'Workspace name or ID', 'Admin actor', 'All outcomes', 'Today', 'Last 24h', 'Past 7d', 'Past 30d', 'Custom range', 'Clear', 'Apply filters']) {
+  for (const label of ['All events', 'Changed Workspace Plan', 'Modified Workspace Status', 'Modified User Access', 'Modified Platform Settings', 'Modified AI Providers Defaults', 'Modified Capabilities Defaults', 'Workspace name or ID', 'Admin actor', 'All outcomes', 'Today', 'Last 24h', 'Past 7d', 'Past 30d', 'Custom range', 'Clear', 'Apply filters']) {
     assert.match(audit, new RegExp(label));
   }
   for (const group of ['workspace_status_modified', 'workspace_access_modified', 'platform_settings_modified', 'llm_provider_defaults_modified', 'workspace_defaults_modified']) {

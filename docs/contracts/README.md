@@ -34,6 +34,12 @@ The console has one runtime service dependency: `control-plane`. It does not cal
   setting. The BFF accepts and projects only `{ methods: ["password"|"oidc", ...] }`,
   requires at least one unique method, and projects only `allowedMethods` plus
   per-method deployment blockers.
+- Platform Kubernetes RBAC additions use the fixed `/admin/v1/system/settings/kubernetes_rbac_additions`
+  setting. The browser projects the effective and deployment catalogs and
+  mutates only a strict `{ upserts, disabledKeys }` overlay. Profile YAML is
+  parsed into exact `get`, `list`, `watch`, `create`, `patch`, and `delete`
+  rules before submission; cluster onboarding
+  snapshots are owned by the control plane and are not reconciled after registration.
 - Workspace defaults use a non-empty unique `availableIn` array containing
   `agents`, `kubernetes`, and/or `virtual_machines`; the scalar list query tests
   membership. The MCP browser request contains only name, HTTPS endpoint,

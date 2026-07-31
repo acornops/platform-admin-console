@@ -16,6 +16,7 @@ import {
 } from '@acornops/ui';
 import { adminApi, readableError } from '../api';
 import type { PageProps } from '../app-types';
+import { KubernetesRbacAdditions } from '../components/KubernetesRbacAdditions';
 import { titleCase } from '../lib';
 
 const providers = ['openai', 'anthropic', 'gemini'] as const;
@@ -65,7 +66,7 @@ export function isAiPolicyMutationValid(value: ReturnType<typeof aiPolicyMutatio
   );
 }
 
-export function SettingsPage({ category, canMutate, notify }: PageProps & { category: 'workspace' | 'ai' }) {
+export function SettingsPage({ category, canMutate, notify }: PageProps & { category: 'workspace' | 'ai' | 'kubernetes' }) {
   const [settings, setSettings] = useState<Map<string, any> | null>(null);
   const [providerDefaults, setProviderDefaults] = useState<any[] | null>(category === 'ai' ? null : []);
   const [error, setError] = useState('');
@@ -88,8 +89,12 @@ export function SettingsPage({ category, canMutate, notify }: PageProps & { cate
   }, [category]);
   useEffect(() => { void load(); }, [load]);
 
-  const title = category === 'workspace' ? 'Workspace Settings' : 'AI Providers';
-  const description = category === 'workspace' ? 'Manage workspace access and sign-in defaults.' : 'Manage default AI provider keys and policy.';
+  const title = category === 'workspace' ? 'Workspace Settings' : category === 'ai' ? 'AI Providers' : 'Kubernetes';
+  const description = category === 'workspace'
+    ? 'Manage workspace access and sign-in defaults.'
+    : category === 'ai'
+      ? 'Manage default AI provider keys and policy.'
+      : 'Define optional Kubernetes resources that users can enable while connecting a cluster.';
   if (!settings && !error) return <><PageHeader title={title} description={description} /><Card><LoadingState label={`Loading ${title}`} /></Card></>;
   if (error) return <><PageHeader title={title} description={description} /><InlineAlert tone="danger">{error}</InlineAlert></>;
 
@@ -101,12 +106,12 @@ export function SettingsPage({ category, canMutate, notify }: PageProps & { cate
           <MemberDiscovery setting={settings!.get('member_discovery')} canMutate={canMutate} reload={load} notify={notify} />
           <SignInMethods setting={settings!.get('user_sign_in_methods')} canMutate={canMutate} reload={load} notify={notify} />
         </div>
-      ) : (
+      ) : category === 'ai' ? (
         <div className="space-y-10">
           <ProviderDefaults values={providerDefaults} error={providerError} canMutate={canMutate} reload={load} notify={notify} />
           <AiPolicy setting={settings!.get('ai_policy')} canMutate={canMutate} reload={load} notify={notify} />
         </div>
-      )}
+      ) : <KubernetesRbacAdditions setting={settings!.get('kubernetes_rbac_additions')} canMutate={canMutate} reload={load} notify={notify} />}
     </div>
   );
 }

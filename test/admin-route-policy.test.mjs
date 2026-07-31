@@ -87,6 +87,25 @@ test("projects only typed platform setting state", () => {
   });
 });
 
+test("projects Kubernetes RBAC effective, deployment, and overlay values separately", () => {
+  const route = matchAdminRoute("GET", "/settings");
+  const profile = { key: "cnpg", name: "CNPG", resources: [{ apiGroup: "postgresql.cnpg.io", apiVersion: "v1", resource: "clusters", kind: "Cluster", scope: "namespaced", verbs: ["list", "patch"] }] };
+  const projected = projectAdminResponse(route, { items: [{
+    key: "kubernetes_rbac_additions",
+    value: { additions: [profile] },
+    deploymentDefault: { additions: [] },
+    overrideValue: { upserts: [profile], disabledKeys: ["legacy"] },
+    source: "runtime_override",
+    version: 3,
+    editable: true,
+    constraints: { maxAdditions: 25, maxResourcesPerAddition: 50, allowedVerbs: ["get", "list", "watch", "create", "patch", "delete"], wildcardsAllowed: false, runtimeEditable: true }
+  }] }).items[0];
+  assert.deepEqual(projected.value, { additions: [profile] });
+  assert.deepEqual(projected.deploymentDefault, { additions: [] });
+  assert.deepEqual(projected.overrideValue, { upserts: [profile], disabledKeys: ["legacy"] });
+  assert.deepEqual(projected.constraints, { maxAdditions: 25, maxResourcesPerAddition: 50, allowedVerbs: ["get", "list", "watch", "create", "patch", "delete"], wildcardsAllowed: false, runtimeEditable: true });
+});
+
 test("requires narrow exact-name lifecycle bodies", () => {
   for (const action of ["suspend", "restore"]) {
     const route = matchAdminRoute("POST", `/workspaces/ws_atlas/${action}`);
@@ -143,6 +162,14 @@ test("allows only fixed versioned platform setting mutations", () => {
   });
   assert.equal(sanitizedAdminBody(signInMethods, { value: { methods: [] }, expectedVersion: 2, reason: "No sign-in methods" }).ok, false);
   assert.equal(sanitizedAdminBody(signInMethods, { value: { methods: ["password", "password"] }, expectedVersion: 2, reason: "Duplicate sign-in methods" }).ok, false);
+  const additions = matchAdminRoute("PATCH", "/settings/kubernetes_rbac_additions");
+  const profile = { key: "cnpg", name: "CNPG", resources: [{ apiGroup: "postgresql.cnpg.io", apiVersion: "v1", resource: "clusters", kind: "Cluster", scope: "namespaced", verbs: ["get", "list", "watch", "create", "patch", "delete"] }] };
+  const value = { upserts: [profile], disabledKeys: [] };
+  assert.equal(sanitizedAdminBody(additions, { value, expectedVersion: 1, reason: "Add CNPG onboarding access" }).ok, true);
+  assert.equal(sanitizedAdminBody(additions, { value: { upserts: [{ ...profile, resources: [{ ...profile.resources[0], verbs: ["patch"] }] }], disabledKeys: [] }, expectedVersion: 1, reason: "Unsafe patch-only access" }).ok, false);
+  assert.equal(sanitizedAdminBody(additions, { value: { upserts: [{ ...profile, resources: [{ ...profile.resources[0], verbs: ["list", "update"] }] }], disabledKeys: [] }, expectedVersion: 1, reason: "Unsupported update access" }).ok, false);
+  assert.equal(sanitizedAdminBody(additions, { value: { upserts: [{ ...profile, resources: [{ ...profile.resources[0], resource: "*" }] }], disabledKeys: [] }, expectedVersion: 1, reason: "Unsafe wildcard access" }).ok, false);
+  assert.equal(sanitizedAdminBody(additions, { value: { upserts: [profile], disabledKeys: ["cnpg"] }, expectedVersion: 1, reason: "Conflicting profile state" }).ok, false);
 });
 
 test("allows only write-only fixed provider default mutations", () => {
