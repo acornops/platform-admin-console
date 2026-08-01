@@ -72,10 +72,7 @@
       "kubernetesRbacSetting": {
         "effectiveFields": ["additions[].{key,name,description?,resources[].{apiGroup,apiVersion,resource,kind,scope,verbs[]}}"],
         "deploymentDefaultFields": ["additions[].{key,name,description?,resources[].{apiGroup,apiVersion,resource,kind,scope,verbs[]}}"],
-        "overrideFields": [
-          "upserts[].{key,name,description?,resources[].{apiGroup,apiVersion,resource,kind,scope,verbs[]}}",
-          "disabledKeys[]"
-        ],
+        "overrideFields": ["upserts[].{key,name,description?,resources[].{apiGroup,apiVersion,resource,kind,scope,verbs[]}}", "disabledKeys[]"],
         "resolution": "Deployment profiles are merged with complete admin upserts by stable key, then disabled keys are removed. Changes affect future onboarding only."
       },
       "llmProviderDefaultStatusFields": ["provider", "configured", "enabled", "source=platform_default|none"],

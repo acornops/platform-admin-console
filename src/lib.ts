@@ -4,6 +4,7 @@ export type RouteName =
   | 'users'
   | 'settings-workspace'
   | 'settings-ai'
+  | 'settings-kubernetes'
   | 'workspace-defaults'
   | 'audit';
 
@@ -21,6 +22,7 @@ export function resolveRoute(pathname: string): AppRoute {
   if (pathname === '/workspaces') return { name: 'workspaces', path: pathname };
   if (pathname === '/users') return { name: 'users', path: pathname };
   if (pathname === '/settings/ai') return { name: 'settings-ai', path: pathname };
+  if (pathname === '/settings/kubernetes') return { name: 'settings-kubernetes', path: pathname };
   if (pathname === '/settings' || pathname === '/settings/workspace') return { name: 'settings-workspace', path: pathname };
   if (pathname === '/workspace-defaults') return { name: 'workspace-defaults', path: pathname };
   if (pathname === '/audit') return { name: 'audit', path: pathname };

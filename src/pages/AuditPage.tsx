@@ -249,7 +249,7 @@ export function AuditPage({ notify }: PageProps) {
               { value: 'admin.workspace.plan.update', label: 'Changed Workspace Plan' },
               { value: 'group:workspace_status_modified', label: 'Modified Workspace Status' },
               { value: 'group:workspace_access_modified', label: 'Modified User Access' },
-              { value: 'group:platform_settings_modified', label: 'Modified Workspace Defaults' },
+              { value: 'group:platform_settings_modified', label: 'Modified Platform Settings' },
               { value: 'group:llm_provider_defaults_modified', label: 'Modified AI Providers Defaults' },
               { value: 'group:workspace_defaults_modified', label: 'Modified Capabilities Defaults' }
             ]} />

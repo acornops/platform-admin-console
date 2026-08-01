@@ -66,6 +66,7 @@ const navSections: Array<{ title?: string; items: NavItem[] }> = [
     items: [
       { label: 'Workspace', path: '/settings/workspace', route: 'settings-workspace', icon: PanelsTopLeft },
       { label: 'AI Providers', path: '/settings/ai', route: 'settings-ai', icon: Bot },
+      { label: 'Kubernetes', path: '/settings/kubernetes', route: 'settings-kubernetes', icon: Laptop },
       { label: 'Capabilities', path: '/workspace-defaults', route: 'workspace-defaults', icon: SlidersHorizontal }
     ]
   },
@@ -191,7 +192,7 @@ export function App() {
   const canMutate = role === 'platform-admin';
   const hiddenRoutes = useMemo(() => new Set<RouteName>(
     role === 'platform-admin-auditor'
-      ? ['overview', 'workspaces', 'users', 'settings-workspace', 'settings-ai', 'workspace-defaults']
+      ? ['overview', 'workspaces', 'users', 'settings-workspace', 'settings-ai', 'settings-kubernetes', 'workspace-defaults']
       : role === 'platform-admin-viewer'
         ? ['audit']
         : []
@@ -213,6 +214,8 @@ export function App() {
           ? <SettingsPage {...pageProps} category="workspace" />
           : route.name === 'settings-ai'
             ? <SettingsPage {...pageProps} category="ai" />
+            : route.name === 'settings-kubernetes'
+              ? <SettingsPage {...pageProps} category="kubernetes" />
             : route.name === 'workspace-defaults'
               ? <WorkspaceDefaultsPage {...pageProps} />
               : <AuditPage {...pageProps} />;

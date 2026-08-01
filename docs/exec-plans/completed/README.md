@@ -1,8 +1,10 @@
 # Completed Execution Plans
 
+- [Admin Audit Event Filter Coverage](admin-audit-event-filter-coverage.md)
 - [Admin Audit Event Sentences](admin-audit-event-sentences.md)
 - [Admin Audit Readability](admin-audit-readability.md)
 - [Admin Audit Workspace Query](admin-audit-workspace-query.md)
+- [Kubernetes RBAC additions](kubernetes-rbac-additions.md)
 - [Mutation-Only Admin Audit](mutation-only-admin-audit.md)
 - [Read Audit Remnant Cleanup](read-audit-remnant-cleanup.md)
 - [Platform UI Fidelity Pass](platform-ui-fidelity-pass.md)

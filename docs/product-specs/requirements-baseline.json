@@ -40,6 +40,16 @@
       ]
     },
     {
+      "id": "REQ-SET-003",
+      "summary": "Platform administrators manage a source-aware table of strict named Kubernetes RBAC profiles for future cluster onboarding, merging Helm deployment profiles with audited upserts and disabled keys while preserving immutable snapshots and no retroactive reconciliation.",
+      "evidence": [
+        { "file": "src/App.tsx", "contains": ["/settings/kubernetes", "settings-kubernetes", "Kubernetes"] },
+        { "file": "src/components/KubernetesRbacAdditions.tsx", "contains": ["RBAC Profiles", "Add profile", "Resource Rules YAML", "Existing clusters are never changed.", "upserts", "disabledKeys", "Restore deployment version", "expectedVersion"] },
+        { "file": "lib/admin-route-policy.mjs", "contains": ["kubernetes_rbac_additions", "validKubernetesRbacAdditionsOverride", "\"get\", \"list\", \"watch\", \"create\", \"patch\", \"delete\"", "resource.verbs.includes(\"patch\") && !resource.verbs.includes(\"list\")"] },
+        { "file": "lib/admin-contract.mjs", "contains": ["projectKubernetesRbacAdditionsOverride", "maxResourcesPerAddition", "runtimeEditable", "wildcardsAllowed: false"] }
+      ]
+    },
+    {
       "id": "REQ-BND-001",
       "summary": "The browser uses only same-origin fixed governance and authentication boundaries, and the BFF maps only explicit /admin/v1 routes.",
       "evidence": [

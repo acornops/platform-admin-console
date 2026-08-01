@@ -321,6 +321,7 @@ test("mock admin audit settings groups align with their Platform Settings destin
     const settings = await fetch(`${base}/admin-console-api/settings`).then((response) => response.json());
     const discovery = settings.items.find((setting) => setting.key === "member_discovery");
     const aiPolicy = settings.items.find((setting) => setting.key === "ai_policy");
+    const kubernetesRbac = settings.items.find((setting) => setting.key === "kubernetes_rbac_additions");
 
     await fetch(`${base}/admin-console-api/settings/member_discovery`, {
       method: "PATCH",
@@ -331,6 +332,11 @@ test("mock admin audit settings groups align with their Platform Settings destin
       method: "PATCH",
       headers,
       body: JSON.stringify({ value: aiPolicy.value, expectedVersion: aiPolicy.version, reason: "Test AI Providers defaults filter" })
+    });
+    await fetch(`${base}/admin-console-api/settings/kubernetes_rbac_additions`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ value: { upserts: [], disabledKeys: ["cnpg"] }, expectedVersion: kubernetesRbac.version, reason: "Test Kubernetes RBAC settings filter" })
     });
     await fetch(`${base}/admin-console-api/llm-provider-defaults/anthropic`, {
       method: "PUT",
@@ -348,7 +354,7 @@ test("mock admin audit settings groups align with their Platform Settings destin
     const ai = await fetch(`${base}/admin-console-api/admin-audit-events?actionGroup=llm_provider_defaults_modified`).then((response) => response.json());
     const capabilities = await fetch(`${base}/admin-console-api/admin-audit-events?actionGroup=workspace_defaults_modified`).then((response) => response.json());
 
-    assert.deepEqual(workspace.items.map((event) => event.subjectId), ["member_discovery"]);
+    assert.deepEqual(new Set(workspace.items.map((event) => event.subjectId)), new Set(["member_discovery", "kubernetes_rbac_additions"]));
     assert.deepEqual(new Set(ai.items.map((event) => `${event.subjectType}:${event.subjectId}`)), new Set(["llm_provider:anthropic", "platform_setting:ai_policy"]));
     assert.ok(capabilities.items.length > 0);
     assert.ok(capabilities.items.every((event) => event.action.startsWith("admin.system.workspace_default.")));
@@ -444,6 +450,21 @@ test("mock platform settings support the versioned update and reset lifecycle", 
     });
     assert.equal(signInResponse.status, 200);
     assert.deepEqual((await signInResponse.json()).value, { methods: ["oidc"] });
+
+    const kubernetesRbac = initial.items.find((setting) => setting.key === "kubernetes_rbac_additions");
+    const rbacResponse = await fetch(`${base}/admin-console-api/settings/kubernetes_rbac_additions`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", "x-csrf-token": csrf.csrfToken },
+      body: JSON.stringify({
+        value: { upserts: [{ key: "mongodb", name: "MongoDB", resources: [{ apiGroup: "mongodbcommunity.mongodb.com", apiVersion: "v1", resource: "mongodbcommunity", kind: "MongoDBCommunity", scope: "namespaced", verbs: ["list"] }] }], disabledKeys: ["cnpg"] },
+        expectedVersion: kubernetesRbac.version,
+        reason: "Replace future onboarding profiles"
+      })
+    });
+    assert.equal(rbacResponse.status, 200);
+    const rbac = await rbacResponse.json();
+    assert.deepEqual(rbac.value.additions.map((profile) => profile.key), ["mongodb"]);
+    assert.deepEqual(rbac.overrideValue.disabledKeys, ["cnpg"]);
   });
 });
 
