@@ -403,6 +403,7 @@ async function callAdminUpstream({ path, method, query, body, upstreamBaseUrl, u
   upstreamUrl.search = query.toString();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8_000);
+  const requestBody = body && Object.keys(body).length ? JSON.stringify(body) : undefined;
   try {
     const upstream = await fetchImpl(upstreamUrl, {
       method,
@@ -415,9 +416,12 @@ async function callAdminUpstream({ path, method, query, body, upstreamBaseUrl, u
         ...(browserRequest?.headers?.["user-agent"] ? { "user-agent": browserRequest.headers["user-agent"] } : {}),
         ...(browserRequest?.headers?.["x-csrf-token"] ? { "x-csrf-token": browserRequest.headers["x-csrf-token"] } : {}),
         ...(browserRequest?.headers?.["x-request-id"] ? { "x-request-id": browserRequest.headers["x-request-id"] } : {}),
-        ...(body && Object.keys(body).length ? { "content-type": "application/json" } : {})
+        ...(requestBody ? {
+          "content-type": "application/json",
+          "content-length": String(Buffer.byteLength(requestBody))
+        } : {})
       },
-      body: body && Object.keys(body).length ? JSON.stringify(body) : undefined,
+      body: requestBody,
       signal: controller.signal
     });
     const contentType = upstream.headers.get("content-type") || "";

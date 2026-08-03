@@ -609,6 +609,40 @@ test("production gateway requires a fixed human role and forwards session and CS
   });
 });
 
+test("production gateway sends an explicit byte length for workspace-default deletion bodies", async () => {
+  const reason = "Remove obsolete platform default";
+  const expectedBody = JSON.stringify({ reason });
+  const fetchImpl = async (url, options) => {
+    if (String(url).endsWith("/admin/v1/me")) {
+      return Response.json({
+        tokenId: "admin-console-bff",
+        scopes: ["admin:self", "admin:system:write"],
+        adminApiEnabled: true,
+        actor: { issuer: "https://idp.example.test/realms/acornops", subject: "user-123", roles: ["platform-admin"] }
+      });
+    }
+    if (options.headers["content-length"] !== String(Buffer.byteLength(expectedBody))) {
+      return new Response("Content length required", { status: 400, headers: { "content-type": "text/plain" } });
+    }
+    assert.equal(options.body, expectedBody);
+    return new Response(null, { status: 204 });
+  };
+  await withServer({ nodeEnv: "production", mode: "control-plane", upstreamBaseUrl: "https://control.example", upstreamToken: "secret", fetchImpl }, async (base) => {
+    const response = await fetch(`${base}/admin-console-api/workspace-defaults/default-1`, {
+      method: "DELETE",
+      headers: {
+        "content-type": "application/json",
+        cookie: "__Host-acornops_admin_session=opaque-session",
+        origin: "https://admin.acornops.dev",
+        "x-csrf-token": "signed-csrf-token"
+      },
+      body: expectedBody
+    });
+    assert.equal(response.status, 204);
+    assert.equal(await response.text(), "");
+  });
+});
+
 test("production gateway rejects identities without an allowed platform-admin role", async () => {
   const fetchImpl = async () => Response.json({
     tokenId: "admin-console-bff",

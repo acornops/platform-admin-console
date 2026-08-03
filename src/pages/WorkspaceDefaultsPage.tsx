@@ -88,13 +88,14 @@ export function WorkspaceDefaultsPage({ canMutate, notify, navigate }: PageProps
   const [tab, setTabState] = useState<Tab>(params.get('tab') === 'skills' ? 'skills' : 'mcp');
   const [availableIn, setAvailableInState] = useState(params.get('availableIn') || '');
   const [query, setQueryState] = useState(params.get('q') || '');
-  const [items, setItems] = useState<WorkspaceDefault[]>([]);
+  const [itemsByTab, setItemsByTab] = useState<Record<Tab, WorkspaceDefault[]>>({ mcp: [], skills: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [mutationError, setMutationError] = useState('');
   const [pendingDefaultId, setPendingDefaultId] = useState('');
   const [dialog, setDialog] = useState<'add-mcp' | 'import-skill' | 'create-skill' | 'edit' | 'delete' | null>(null);
   const [selected, setSelected] = useState<WorkspaceDefault | null>(null);
+  const items = itemsByTab[tab];
 
   const syncUrl = (next: { tab?: Tab; availableIn?: string; q?: string }) => {
     const values = { tab: next.tab ?? tab, availableIn: next.availableIn ?? availableIn, q: next.q ?? query };
@@ -109,14 +110,20 @@ export function WorkspaceDefaultsPage({ canMutate, notify, navigate }: PageProps
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    const apiQuery = new URLSearchParams({ kind: tab === 'mcp' ? 'mcp_server' : 'skill' });
-    if (availableIn) apiQuery.set('availableIn', availableIn);
-    if (query.trim()) apiQuery.set('q', query.trim());
+    const apiQuery = (kind: WorkspaceDefault['kind']) => {
+      const value = new URLSearchParams({ kind });
+      if (availableIn) value.set('availableIn', availableIn);
+      if (query.trim()) value.set('q', query.trim());
+      return value;
+    };
     try {
-      const response = await adminApi<any>(`/workspace-defaults?${apiQuery}`);
-      setItems(response.items || []);
+      const [mcpResponse, skillsResponse] = await Promise.all([
+        adminApi<any>(`/workspace-defaults?${apiQuery('mcp_server')}`),
+        adminApi<any>(`/workspace-defaults?${apiQuery('skill')}`)
+      ]);
+      setItemsByTab({ mcp: mcpResponse.items || [], skills: skillsResponse.items || [] });
     } catch (reason) { setError(readableError(reason)); } finally { setLoading(false); }
-  }, [availableIn, query, tab]);
+  }, [availableIn, query]);
   useEffect(() => { const timer = window.setTimeout(() => void load(), 180); return () => window.clearTimeout(timer); }, [load]);
 
   const setDefaultEnabled = async (item: WorkspaceDefault, enabled: boolean) => {
@@ -130,7 +137,10 @@ export function WorkspaceDefaultsPage({ canMutate, notify, navigate }: PageProps
           reason: `${enabled ? 'Enabled' : 'Disabled'} platform workspace default`
         }
       });
-      setItems((current) => current.map((candidate) => candidate.id === item.id ? updated : candidate));
+      setItemsByTab((current) => ({
+        ...current,
+        [tab]: current[tab].map((candidate) => candidate.id === item.id ? updated : candidate)
+      }));
       notify(enabled
         ? `${item.name} will be included in new workspaces.`
         : `${item.name} will be skipped when new workspaces are created.`);

@@ -327,6 +327,9 @@ test('capability defaults reuse the management underline tabs without adding Too
   assert.match(page, /allPanelsMounted=\{false\}/);
   assert.match(page, /\{ value: 'mcp', label: 'MCP servers' \}/);
   assert.match(page, /\{ value: 'skills', label: 'Skills' \}/);
+  assert.match(page, /const items = itemsByTab\[tab\]/);
+  assert.match(page, /Promise\.all\(\[\s*adminApi<any>\(`\/workspace-defaults\?\$\{apiQuery\('mcp_server'\)\}`\),\s*adminApi<any>\(`\/workspace-defaults\?\$\{apiQuery\('skill'\)\}`\)\s*\]\)/);
+  assert.doesNotMatch(page, /\[availableIn, query, tab\]/);
   assert.match(page, /role="tabpanel"/);
   assert.doesNotMatch(page, /label: 'Tools'/);
   assert.doesNotMatch(page, /inline-flex rounded-md border border-ui-border bg-ui-surface p-1/);
