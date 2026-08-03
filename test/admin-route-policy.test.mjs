@@ -62,6 +62,26 @@ test("projects workspace and audit responses to the confidentiality boundary", (
   assert.equal(audit.items[0].subjectDisplayName, "Maya Chen");
 });
 
+test("projects only aggregate last-login metadata for user summaries", () => {
+  const route = matchAdminRoute("GET", "/users");
+  const projected = projectAdminResponse(route, { items: [{
+    id: "usr_1",
+    email: "maya@example.test",
+    displayName: "Maya Chen",
+    createdAt: "2026-01-01T00:00:00Z",
+    emailVerified: true,
+    authMethods: ["password", "oidc"],
+    workspaceMembershipCount: 2,
+    lastLoginAt: "2026-08-01T03:04:05Z",
+    activeSessionCount: 3,
+    sessionIds: ["hidden"]
+  }] });
+
+  assert.equal(projected.items[0].lastLoginAt, "2026-08-01T03:04:05Z");
+  assert.equal("activeSessionCount" in projected.items[0], false);
+  assert.equal("sessionIds" in projected.items[0], false);
+});
+
 test("projects only typed platform setting state", () => {
   const route = matchAdminRoute("GET", "/settings");
   const projected = projectAdminResponse(route, {

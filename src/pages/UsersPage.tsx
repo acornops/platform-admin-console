@@ -152,6 +152,7 @@ export function UsersPage(props: PageProps) {
                   <DataTableHeaderCell density="compact">User</DataTableHeaderCell>
                   <DataTableHeaderCell density="compact">Workspaces</DataTableHeaderCell>
                   <DataTableHeaderCell density="compact">Status</DataTableHeaderCell>
+                  <DataTableHeaderCell density="compact">Last Login</DataTableHeaderCell>
                   <DataTableHeaderCell density="compact">Created</DataTableHeaderCell>
                 </tr></thead>
                 <tbody>
@@ -172,6 +173,7 @@ export function UsersPage(props: PageProps) {
                           </span>
                         )}
                       </td>
+                      <td data-label="Last Login" className="px-5 py-4 text-sm text-ui-text-muted">{user.lastLoginAt ? formatDate(user.lastLoginAt) : <span aria-label="Not recorded">-</span>}</td>
                       <td data-label="Created" className="px-5 py-4 text-sm text-ui-text-muted">{formatDate(user.createdAt)}</td>
                     </tr>
                   ))}

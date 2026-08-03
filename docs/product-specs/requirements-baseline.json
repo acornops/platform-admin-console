@@ -178,6 +178,15 @@
       ]
     },
     {
+      "id": "REQ-USR-010",
+      "summary": "The Users directory retains Created and adds the latest recorded password or OIDC login as Last Login, using an accessible dash when no timestamp exists and exposing no session state.",
+      "evidence": [
+        { "file": "src/pages/UsersPage.tsx", "contains": [">Last Login</DataTableHeaderCell>", ">Created</DataTableHeaderCell>", "data-label=\"Last Login\"", "user.lastLoginAt ? formatDate(user.lastLoginAt)", "aria-label=\"Not recorded\">-</span>"] },
+        { "file": "lib/admin-contract.mjs", "contains": ["value.lastLoginAt ? { lastLoginAt: string(value.lastLoginAt) }"] },
+        { "file": "docs/contracts/manifest.json", "contains": ["adminUserSummaryResponseFields", "lastLoginAt? (latest recorded password or OIDC login)"] }
+      ]
+    },
+    {
       "id": "REQ-WSP-001",
       "summary": "The Workspaces directory mirrors the accepted Users inventory pattern, including the shared result-count badge treatment, with complete lifecycle-status filtering and no plan filter.",
       "evidence": [

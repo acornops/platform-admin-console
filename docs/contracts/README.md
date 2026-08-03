@@ -57,6 +57,7 @@ The console has one runtime service dependency: `control-plane`. It does not cal
 - Workspace operational summaries and operational admin-audit actions are removed even if the producer returns them.
 - Admin audit attribution identifies the authenticated human from immutable OIDC issuer and subject fields, with display name and email snapshots for readability. The BFF workload token remains separate credential evidence.
 - Workspace creator and admin-audit object labels are optional producer fields. The BFF projects them explicitly; the browser prefers the readable label and falls back to the immutable creator or workspace ID.
+- User summaries may include `lastLoginAt`, the latest recorded password or OIDC login timestamp. The BFF projects only this aggregate value and continues to exclude active-session data.
 - The Admin Audit workspace field sends `workspaceQuery`, which the producer
   matches against an exact workspace ID or a case-insensitive literal workspace
   name substring. The BFF retains `workspaceId` only for compatible existing

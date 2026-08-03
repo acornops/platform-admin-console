@@ -64,6 +64,7 @@ The executable baseline may use current source, durable docs, contracts, and foc
 | `REQ-USR-007` | Successful revocations immediately synchronize the panel count, directory workspace count, and active workspace-filter result set. |
 | `REQ-USR-008` | The Users directory labels identity verification as `Status` and places it immediately to the right of `Workspaces`. Verified uses the same shared green success badge and dot as Active in the Workspaces directory. Unverified remains explicit readable orange dot-and-text without a bubble so verification is not confused with workspace lifecycle. |
 | `REQ-USR-009` | The selected-user panel provides `Grant Access`. It lists only workspaces the user does not already access, uses only contract-provided roles, sends the existing `userId` with `createUserIfMissing: false`, records a deterministic audit reason, and synchronizes panel and directory counts after success. |
+| `REQ-USR-010` | The Users directory retains `Created` and adds `Last Login` immediately before it. Last Login shows the latest producer-recorded password or OIDC login timestamp and renders `-` with accessible `Not recorded` text when no timestamp exists; it does not expose active-session state. |
 
 ### Workspaces
 

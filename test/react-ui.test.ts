@@ -421,7 +421,7 @@ test('platform data surfaces keep the original compact table-header rhythm', asy
     readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
   ]);
   const tableHeaders = [...`${users}\n${workspaces}\n${defaults}`.matchAll(/<DataTableHeaderCell\b([^>]*)>/g)];
-  assert.equal(tableHeaders.length, 18);
+  assert.equal(tableHeaders.length, 19);
   for (const [, attributes] of tableHeaders) assert.match(attributes, /\bdensity="compact"/);
   assert.match(audit, /audit-grid-header type-micro-label/);
   assert.match(styles, /\.audit-grid-header \{ padding: \.625rem 1\.25rem; \}/);
@@ -501,9 +501,10 @@ test('users match the workspace directory and compact details patterns', async (
   assert.match(users, /load\(\{ append: true \}\)/);
   assert.match(users, /Loading…' : 'Load more'/);
   assert.doesNotMatch(users, /heading="User Directory"/);
-  assert.match(users, />User<\/DataTableHeaderCell>[\s\S]*>Workspaces<\/DataTableHeaderCell>[\s\S]*>Status<\/DataTableHeaderCell>[\s\S]*>Created<\/DataTableHeaderCell>/);
+  assert.match(users, />User<\/DataTableHeaderCell>[\s\S]*>Workspaces<\/DataTableHeaderCell>[\s\S]*>Status<\/DataTableHeaderCell>[\s\S]*>Last Login<\/DataTableHeaderCell>[\s\S]*>Created<\/DataTableHeaderCell>/);
   assert.doesNotMatch(users, />Verification<\/DataTableHeaderCell>/);
   assert.match(users, /<td data-label="Workspaces"[\s\S]*<td data-label="Status"/);
+  assert.match(users, /<td data-label="Last Login"[\s\S]*user\.lastLoginAt \? formatDate\(user\.lastLoginAt\)[\s\S]*aria-label="Not recorded">-<\/span>/);
   assert.match(users, /<StatusBadge tone="success" className="gap-1\.5">[\s\S]*h-2 w-2 rounded-full bg-status-success[\s\S]*Verified[\s\S]*<\/StatusBadge>/);
   assert.match(users, /text-accent-readable[\s\S]*h-2 w-2 rounded-full bg-accent[\s\S]*Unverified/);
   assert.doesNotMatch(users, /<StatusBadge[^>\n]*>\s*Unverified/);

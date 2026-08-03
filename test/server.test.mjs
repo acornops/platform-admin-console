@@ -367,6 +367,7 @@ test("mock users support cursor pagination, identity search, and verification fi
     assert.equal(first.items.length, 2);
     assert.equal(typeof first.nextCursor, "string");
     assert.equal(first.items.find((user) => user.id === "usr_maya").workspaceMembershipCount, 1);
+    assert.equal(first.items.find((user) => user.id === "usr_maya").lastLoginAt, "2026-07-31T02:15:00Z");
 
     const second = await fetch(`${base}/admin-console-api/users?limit=2&cursor=${encodeURIComponent(first.nextCursor)}`).then((response) => response.json());
     assert.equal(second.items.length, 2);
@@ -374,6 +375,7 @@ test("mock users support cursor pagination, identity search, and verification fi
 
     const byId = await fetch(`${base}/admin-console-api/users?q=usr_sam`).then((response) => response.json());
     assert.deepEqual(byId.items.map((user) => user.id), ["usr_sam"]);
+    assert.equal("lastLoginAt" in byId.items[0], false);
 
     const unverified = await fetch(`${base}/admin-console-api/users?emailVerified=false`).then((response) => response.json());
     assert.ok(unverified.items.length > 0);
