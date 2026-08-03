@@ -66,9 +66,15 @@
       ],
       "paginationShape": ["items", "nextCursor?"],
       "mutationFields": ["reason", "ticketRef?"],
-      "platformSettingKeys": ["member_discovery", "ai_policy", "user_sign_in_methods", "kubernetes_rbac_additions"],
+      "platformSettingKeys": ["member_discovery", "ai_policy", "user_sign_in_methods", "help_links", "kubernetes_rbac_additions"],
       "platformSettingPatchFields": ["value", "expectedVersion", "reason"],
       "platformSettingResetFields": ["expectedVersion", "reason"],
+      "helpLinksSetting": {
+        "valueFields": ["documentationUrl", "supportUrl"],
+        "defaults": ["documentationUrl=https://docs.acornops.dev", "supportUrl=https://discord.gg/jBgTy4KhF"],
+        "validation": "Documentation requires credential-free HTTPS. Support requires credential-free HTTPS or a plain mailto address. Values are limited to 2048 characters.",
+        "resolution": "A versioned admin override replaces the built-in product defaults. Reset removes the override and restores those defaults."
+      },
       "kubernetesRbacSetting": {
         "effectiveFields": ["additions[].{key,name,description?,resources[].{apiGroup,apiVersion,resource,kind,scope,verbs[]}}"],
         "deploymentDefaultFields": ["additions[].{key,name,description?,resources[].{apiGroup,apiVersion,resource,kind,scope,verbs[]}}"],

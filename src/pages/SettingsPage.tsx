@@ -22,6 +22,30 @@ import { titleCase } from '../lib';
 const providers = ['openai', 'anthropic', 'gemini'] as const;
 const providerLabels: Record<string, string> = { openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Gemini' };
 const discoveryLabels: Record<string, string> = { disabled: 'By Invites Only', exact_email: 'Exact Email', directory: 'Directory' };
+const productHelpLinks = {
+  documentationUrl: 'https://docs.acornops.dev',
+  supportUrl: 'https://discord.gg/jBgTy4KhF'
+};
+
+function validHttpsDestination(value: string) {
+  if (value.length > 2048) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && Boolean(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+function validSupportDestination(value: string) {
+  if (validHttpsDestination(value)) return true;
+  if (value.length > 2048 || !value.startsWith('mailto:') || value.includes('?') || value.includes('#')) return false;
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.slice('mailto:'.length));
+}
+
+export function isHelpLinksMutationValid(value: { documentationUrl: string; supportUrl: string }) {
+  return validHttpsDestination(value.documentationUrl) && validSupportDestination(value.supportUrl);
+}
 
 export function settingValuesMatch(left: unknown, right: unknown) {
   const normalize = (value: any): any => Array.isArray(value)
@@ -91,7 +115,7 @@ export function SettingsPage({ category, canMutate, notify }: PageProps & { cate
 
   const title = category === 'workspace' ? 'Workspace Settings' : category === 'ai' ? 'AI Providers' : 'Kubernetes';
   const description = category === 'workspace'
-    ? 'Manage workspace access and sign-in defaults.'
+    ? 'Manage workspace access, sign-in methods, and user help destinations.'
     : category === 'ai'
       ? 'Manage default AI provider keys and policy.'
       : 'Define optional Kubernetes resources that users can enable while connecting a cluster.';
@@ -105,6 +129,7 @@ export function SettingsPage({ category, canMutate, notify }: PageProps & { cate
         <div className="space-y-10">
           <MemberDiscovery setting={settings!.get('member_discovery')} canMutate={canMutate} reload={load} notify={notify} />
           <SignInMethods setting={settings!.get('user_sign_in_methods')} canMutate={canMutate} reload={load} notify={notify} />
+          <HelpLinks setting={settings!.get('help_links')} canMutate={canMutate} reload={load} notify={notify} />
         </div>
       ) : category === 'ai' ? (
         <div className="space-y-10">
@@ -116,7 +141,7 @@ export function SettingsPage({ category, canMutate, notify }: PageProps & { cate
   );
 }
 
-function SettingFrame({ setting, title, description, value, saveDisabled = false, canMutate, reload, notify, children }: any) {
+function SettingFrame({ setting, title, description, value, saveDisabled = false, defaultSourceLabel = 'Deployment Default', resetTargetLabel = 'deployment default', warningLabel = 'Deployment policy applied.', canMutate, reload, notify, children }: any) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   if (!setting) return <PageSection title={title} description="This setting is unavailable."><InlineAlert tone="warning">The deployment did not return this setting.</InlineAlert></PageSection>;
@@ -129,21 +154,21 @@ function SettingFrame({ setting, title, description, value, saveDisabled = false
         method,
         body: method === 'PATCH'
           ? { value, expectedVersion: setting.version, reason: `Platform admin updated ${setting.key.replaceAll('_', ' ')}` }
-          : { expectedVersion: setting.version, reason: `Platform admin reset ${setting.key.replaceAll('_', ' ')} to the deployment default` }
+          : { expectedVersion: setting.version, reason: `Platform admin reset ${setting.key.replaceAll('_', ' ')} to the ${resetTargetLabel}` }
       });
-      notify(`${title} ${method === 'PATCH' ? 'updated' : 'reset to deployment default'}.`);
+      notify(`${title} ${method === 'PATCH' ? 'updated' : `reset to ${resetTargetLabel}`}.`);
       await reload();
     } catch (reason) { setError(readableError(reason)); } finally { setPending(false); }
   };
   return (
     <PageSection
-      title={<span className="flex flex-wrap items-center gap-2">{title}<StatusBadge>{setting.source === 'runtime_override' ? 'Admin Override' : setting.source === 'runtime_override_constrained' ? 'Policy Constrained' : 'Deployment Default'}</StatusBadge></span>}
+      title={<span className="flex flex-wrap items-center gap-2">{title}<StatusBadge>{setting.source === 'runtime_override' ? 'Admin Override' : setting.source === 'runtime_override_constrained' ? 'Policy Constrained' : defaultSourceLabel}</StatusBadge></span>}
       description={description}
       actions={<><Button size="sm" disabled={!editable || setting.overrideValue === undefined || pending} onClick={() => void mutate('DELETE')}>Reset</Button><Button variant="primary" size="sm" disabled={!editable || !dirty || saveDisabled || pending} onClick={() => void mutate('PATCH')}>{pending ? 'Saving…' : 'Save'}</Button></>}
     >
       <Card className="p-5">
         <div className={!editable ? 'pointer-events-none opacity-65' : ''}>{children}</div>
-        {setting.warning && <InlineAlert tone="warning" className="mt-4"><strong>Deployment policy applied.</strong> {setting.warning}</InlineAlert>}
+        {setting.warning && <InlineAlert tone="warning" className="mt-4"><strong>{warningLabel}</strong> {setting.warning}</InlineAlert>}
         {!setting.editable && <HelpText>This value is fixed by deployment policy.</HelpText>}
         {!canMutate && <HelpText>Your platform role has read-only access.</HelpText>}
         {error && <InlineAlert tone="danger" className="mt-4">{error}</InlineAlert>}
@@ -189,6 +214,36 @@ function SignInMethods(props: any) {
         })}
       </div>
     </fieldset>
+  </SettingFrame>;
+}
+
+function HelpLinks(props: any) {
+  const setting = props.setting;
+  const [value, setValue] = useState(setting?.value || productHelpLinks);
+  useEffect(() => setValue(setting?.value || productHelpLinks), [setting]);
+  if (!setting) return <PageSection title={<span className="flex flex-wrap items-center gap-2">Help &amp; Support Links<StatusBadge>Product Default</StatusBadge></span>} description="These links appear on the Help page for every workspace.">
+    <Card className="p-5">
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div><FieldLabel>Documentation URL</FieldLabel><TextInput type="url" value={productHelpLinks.documentationUrl} disabled className="mt-2 w-full" /></div>
+        <div><FieldLabel>Contact Support URL</FieldLabel><TextInput type="url" value={productHelpLinks.supportUrl} disabled className="mt-2 w-full" /></div>
+      </div>
+      <InlineAlert tone="neutral" className="mt-4">The product defaults remain active. Upgrade the control plane to manage these links.</InlineAlert>
+    </Card>
+  </PageSection>;
+  const update = (key: 'documentationUrl' | 'supportUrl', next: string) => setValue((current: typeof value) => ({ ...current, [key]: next }));
+  return <SettingFrame {...props} title="Help & Support Links" description="These links appear on the Help page for every workspace." value={value} defaultSourceLabel="Product Default" resetTargetLabel="product default" warningLabel="Product default applied." saveDisabled={!isHelpLinksMutationValid(value)}>
+    <div className="grid gap-5 sm:grid-cols-2">
+      <div>
+        <FieldLabel>Documentation URL</FieldLabel>
+        <TextInput type="url" maxLength={2048} value={value.documentationUrl} onChange={(event) => update('documentationUrl', event.target.value.trim())} aria-invalid={!validHttpsDestination(value.documentationUrl)} className="mt-2 w-full" />
+        <HelpText>Use a complete HTTPS URL.</HelpText>
+      </div>
+      <div>
+        <FieldLabel>Contact Support URL</FieldLabel>
+        <TextInput type="url" maxLength={2048} value={value.supportUrl} onChange={(event) => update('supportUrl', event.target.value.trim())} aria-invalid={!validSupportDestination(value.supportUrl)} className="mt-2 w-full" />
+        <HelpText>Use a complete HTTPS URL or a mailto address.</HelpText>
+      </div>
+    </div>
   </SettingFrame>;
 }
 

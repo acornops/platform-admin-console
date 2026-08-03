@@ -34,6 +34,10 @@ The console has one runtime service dependency: `control-plane`. It does not cal
   setting. The BFF accepts and projects only `{ methods: ["password"|"oidc", ...] }`,
   requires at least one unique method, and projects only `allowedMethods` plus
   per-method deployment blockers.
+- Platform Help & Support Links uses the fixed
+  `/admin/v1/system/settings/help_links` setting. The BFF accepts and projects
+  only `documentationUrl` and `supportUrl`, applies the producer's protocol and
+  length bounds, and restores built-in product defaults when reset.
 - Platform Kubernetes RBAC additions use the fixed `/admin/v1/system/settings/kubernetes_rbac_additions`
   setting. The browser projects the effective and deployment catalogs and
   mutates only a strict `{ upserts, disabledKeys }` overlay. Profile YAML is

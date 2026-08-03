@@ -20,6 +20,7 @@ import { filterUsersByWorkspace } from '../src/pages/UsersPage';
 import {
   aiPolicyMutationValue,
   isAiPolicyMutationValid,
+  isHelpLinksMutationValid,
   settingValuesMatch
 } from '../src/pages/SettingsPage';
 import { buildManualSkillContent, canonicalDestinations, normalizeSkillName } from '../src/pages/WorkspaceDefaultsPage';
@@ -670,4 +671,16 @@ test('AI provider settings use admin-facing copy and right-aligned key actions',
   assert.match(settings, /setting\.source === 'runtime_override' \? 'Admin Override'/);
   assert.doesNotMatch(settings, /Runtime Override/);
   assert.match(settings, /className="mt-auto flex flex-wrap justify-end gap-2 pt-5"/);
+});
+
+test('workspace settings present safe platform-wide help link controls', async () => {
+  assert.equal(isHelpLinksMutationValid({ documentationUrl: 'https://docs.example.com', supportUrl: 'https://support.example.com' }), true);
+  assert.equal(isHelpLinksMutationValid({ documentationUrl: 'https://docs.example.com', supportUrl: 'mailto:support@example.com' }), true);
+  assert.equal(isHelpLinksMutationValid({ documentationUrl: 'javascript:alert(1)', supportUrl: 'https://support.example.com' }), false);
+  assert.equal(isHelpLinksMutationValid({ documentationUrl: 'https://docs.example.com', supportUrl: 'mailto:support@example.com?subject=x' }), false);
+  const settings = await readFile(new URL('../src/pages/SettingsPage.tsx', import.meta.url), 'utf8');
+  assert.match(settings, /Help & Support Links/);
+  assert.match(settings, /These links appear on the Help page for every workspace\./);
+  assert.match(settings, /Product Default/);
+  assert.match(settings, /settings!\.get\('help_links'\)/);
 });

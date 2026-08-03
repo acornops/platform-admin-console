@@ -107,6 +107,26 @@ test("projects only typed platform setting state", () => {
   });
 });
 
+test("projects safe help links and replaces unsafe producer values with product defaults", () => {
+  const route = matchAdminRoute("GET", "/settings");
+  const projected = projectAdminResponse(route, { items: [{
+    key: "help_links",
+    value: { documentationUrl: "javascript:alert(1)", supportUrl: "https://support.example.com" },
+    deploymentDefault: { documentationUrl: "https://docs.acornops.dev", supportUrl: "https://discord.gg/jBgTy4KhF" },
+    source: "runtime_override_constrained",
+    version: 2,
+    editable: true,
+    constraints: { documentationProtocols: ["https:", "javascript:"], supportProtocols: ["https:", "mailto:"], maxUrlLength: 9999 }
+  }] }).items[0];
+  assert.deepEqual(projected.value, {
+    documentationUrl: "https://docs.acornops.dev",
+    supportUrl: "https://support.example.com"
+  });
+  assert.deepEqual(projected.constraints, {
+    documentationProtocols: ["https:"], supportProtocols: ["https:", "mailto:"], maxUrlLength: 2048
+  });
+});
+
 test("projects Kubernetes RBAC effective, deployment, and overlay values separately", () => {
   const route = matchAdminRoute("GET", "/settings");
   const profile = { key: "cnpg", name: "CNPG", resources: [{ apiGroup: "postgresql.cnpg.io", apiVersion: "v1", resource: "clusters", kind: "Cluster", scope: "namespaced", verbs: ["list", "patch"] }] };
@@ -182,6 +202,10 @@ test("allows only fixed versioned platform setting mutations", () => {
   });
   assert.equal(sanitizedAdminBody(signInMethods, { value: { methods: [] }, expectedVersion: 2, reason: "No sign-in methods" }).ok, false);
   assert.equal(sanitizedAdminBody(signInMethods, { value: { methods: ["password", "password"] }, expectedVersion: 2, reason: "Duplicate sign-in methods" }).ok, false);
+  const helpLinks = matchAdminRoute("PATCH", "/settings/help_links");
+  assert.equal(sanitizedAdminBody(helpLinks, { value: { documentationUrl: "https://docs.example.com", supportUrl: "mailto:support@example.com" }, expectedVersion: 0, reason: "Set user help destinations" }).ok, true);
+  assert.equal(sanitizedAdminBody(helpLinks, { value: { documentationUrl: "javascript:alert(1)", supportUrl: "https://support.example.com" }, expectedVersion: 0, reason: "Unsafe help destination" }).ok, false);
+  assert.equal(sanitizedAdminBody(helpLinks, { value: { documentationUrl: "https://docs.example.com", supportUrl: "https://support.example.com", secret: "no" }, expectedVersion: 0, reason: "Unexpected help field" }).ok, false);
   const additions = matchAdminRoute("PATCH", "/settings/kubernetes_rbac_additions");
   const profile = { key: "cnpg", name: "CNPG", resources: [{ apiGroup: "postgresql.cnpg.io", apiVersion: "v1", resource: "clusters", kind: "Cluster", scope: "namespaced", verbs: ["get", "list", "watch", "create", "patch", "delete"] }] };
   const value = { upserts: [profile], disabledKeys: [] };

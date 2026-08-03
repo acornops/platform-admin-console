@@ -15,7 +15,7 @@
     "start": "node server.mjs",
     "prebuild": "npm run ui:build",
     "build": "vite build",
-    "lint": "npm run ui:typecheck && tsc --noEmit && node --check server.mjs && node --check lib/admin-route-policy.mjs && node --check lib/admin-contract.mjs && node --check lib/mock-admin-store.mjs && node --check lib/mock-workspace-defaults.mjs && node --check scripts/check-requirements.mjs",
+    "lint": "npm run ui:typecheck && tsc --noEmit && node --check server.mjs && node --check lib/admin-route-policy.mjs && node --check lib/admin-contract.mjs && node --check lib/mock-admin-store.mjs && node --check lib/mock-help-links.mjs && node --check lib/mock-workspace-defaults.mjs && node --check scripts/check-requirements.mjs",
     "test": "node --import tsx --test",
     "test:coverage": "node --import tsx --experimental-test-coverage --test-coverage-exclude=src/** --test-coverage-exclude=packages/** --test-coverage-lines=80 --test-coverage-branches=65 --test-coverage-functions=80 --test",
     "contracts:check": "node scripts/check-contracts.mjs",

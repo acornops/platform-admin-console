@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastReviewed": "2026-07-31",
+  "lastReviewed": "2026-08-03",
   "authority": "docs/product-specs/current-requirements.md",
   "expectedRuntime": {
     "adminRouteCount": 25,
@@ -26,10 +26,12 @@
     },
     {
       "id": "REQ-SET-001",
-      "summary": "Platform settings expose direct Workspace and AI Providers sidebar destinations with independent sections, User Sign-In Methods controlling workspace-user Password and OIDC authentication, Default LLM Keys before AI Policy, explicit Member Discovery addition outcomes, and no-op Save controls disabled, while remaining fixed, privacy-projected, versioned, deployment-bounded, and writable only by the full platform-admin role.",
+      "summary": "Platform settings expose direct Workspace and AI Providers sidebar destinations with independent sections, User Sign-In Methods controlling workspace-user Password and OIDC authentication, safe platform-wide Help & Support Links after sign-in methods, Default LLM Keys before AI Policy, explicit Member Discovery addition outcomes, and no-op Save controls disabled, while remaining fixed, privacy-projected, versioned, source-aware, and writable only by the full platform-admin role.",
       "evidence": [
         { "file": "src/App.tsx", "contains": ["/settings/workspace", "/settings/ai", "settings-workspace", "settings-ai", "Platform Settings"] },
-        { "file": "src/pages/SettingsPage.tsx", "contains": ["Workspace Settings", "AI Providers", "Member Discovery", "User Sign-In Methods", "Default LLM Keys", "AI Policy", "expectedVersion", "Deployment Default", "disabled={!editable || !dirty || saveDisabled || pending}"], "excludes": ["Password Signup", "SMTP_PASSWORD", "OIDC_CLIENT_SECRET"] }
+        { "file": "src/pages/SettingsPage.tsx", "contains": ["Workspace Settings", "AI Providers", "Member Discovery", "User Sign-In Methods", "Help & Support Links", "These links appear on the Help page for every workspace.", "Product Default", "Admin Override", "Default LLM Keys", "AI Policy", "expectedVersion", "Deployment Default", "disabled={!editable || !dirty || saveDisabled || pending}"], "excludes": ["Password Signup", "SMTP_PASSWORD", "OIDC_CLIENT_SECRET"] },
+        { "file": "lib/admin-route-policy.mjs", "contains": ["help_links", "validHelpLinks", "documentationUrl", "supportUrl"] },
+        { "file": "lib/admin-contract.mjs", "contains": ["help_links", "projectHelpLinks", "https:", "mailto:"] }
       ]
     },
     {

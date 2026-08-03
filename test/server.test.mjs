@@ -453,6 +453,21 @@ test("mock platform settings support the versioned update and reset lifecycle", 
     assert.equal(signInResponse.status, 200);
     assert.deepEqual((await signInResponse.json()).value, { methods: ["oidc"] });
 
+    const helpLinks = initial.items.find((setting) => setting.key === "help_links");
+    const helpLinksResponse = await fetch(`${base}/admin-console-api/settings/help_links`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", "x-csrf-token": csrf.csrfToken },
+      body: JSON.stringify({
+        value: { documentationUrl: "https://docs.example.com", supportUrl: "mailto:support@example.com" },
+        expectedVersion: helpLinks.version,
+        reason: "Set workspace user help destinations"
+      })
+    });
+    assert.equal(helpLinksResponse.status, 200);
+    const updatedHelpLinks = await helpLinksResponse.json();
+    assert.deepEqual(updatedHelpLinks.value, { documentationUrl: "https://docs.example.com", supportUrl: "mailto:support@example.com" });
+    assert.equal(updatedHelpLinks.source, "runtime_override");
+
     const kubernetesRbac = initial.items.find((setting) => setting.key === "kubernetes_rbac_additions");
     const rbacResponse = await fetch(`${base}/admin-console-api/settings/kubernetes_rbac_additions`, {
       method: "PATCH",
