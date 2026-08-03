@@ -275,7 +275,7 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
                         return (
                           <tr key={member.userId} className="data-row">
                             <td data-primary="true" data-label="User" className="px-5 py-3">
-                              <button className="min-w-0 text-left" onClick={() => navigate(`/users/${encodeURIComponent(member.userId)}?workspace=${encodeURIComponent(workspace.name)}`)}>
+                              <button className="block w-full min-w-0 truncate text-left" title={member.displayName || member.email} onClick={() => navigate(`/users/${encodeURIComponent(member.userId)}?workspace=${encodeURIComponent(workspace.name)}`)}>
                                 <strong className="block truncate text-sm text-ui-text">{member.displayName || member.email}</strong>
                               </button>
                             </td>

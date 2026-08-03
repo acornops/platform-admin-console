@@ -290,7 +290,7 @@ function UserPanel({ userId, workspaces, onClose, onChanged, navigate, notify, c
                         return (
                           <tr key={membership.workspaceId} className="data-row">
                             <td data-primary="true" data-label="Workspace" className="px-5 py-3">
-                              <button className="min-w-0 text-left" onClick={() => navigate(`/workspaces/${encodeURIComponent(membership.workspaceId)}`)}>
+                              <button className="block w-full min-w-0 truncate text-left" title={membership.workspace.name} onClick={() => navigate(`/workspaces/${encodeURIComponent(membership.workspaceId)}`)}>
                                 <strong className="block truncate text-sm text-ui-text">{membership.workspace.name}</strong>
                                 <span className="mono block break-all text-xs text-ui-text-muted">{membership.workspaceId}</span>
                               </button>
