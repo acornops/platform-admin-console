@@ -51,7 +51,10 @@ The console has one runtime service dependency: `control-plane`. It does not cal
   authentication compatibility value and never projects MCP authentication
   metadata back to the browser. Skill creation accepts a bounded manual
   Markdown bundle, while skill import accepts a bounded pinned public
-  GitHub/GitLab snapshot. Neither flow returns bundle contents.
+  GitHub/GitLab snapshot. Neither flow returns bundle contents. Enabled
+  definitions are copied once into a new workspace as disabled workspace
+  starters. Enabling a starter creates a detached, normal workspace-owned item;
+  Platform Admin never reconciles later definition changes into that item.
 
 ## Control-Plane Boundary Notes
 

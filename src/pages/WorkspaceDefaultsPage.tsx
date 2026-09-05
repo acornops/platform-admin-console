@@ -29,6 +29,7 @@ import { adminApi, readableError } from '../api';
 import type { PageProps } from '../app-types';
 import { ActionDialog } from '../components/ActionDialog';
 import { importSkillFromGit } from '../lib/git-skill-import.js';
+import { isValidPublicHttpsUrl } from '../../lib/public-https-url.mjs';
 
 const destinations: Record<string, string> = { agents: 'Agents', kubernetes: 'Kubernetes', virtual_machines: 'Virtual machines' };
 const allDestinations = Object.keys(destinations);
@@ -169,8 +170,10 @@ export function WorkspaceDefaultsPage({ canMutate, notify, navigate }: PageProps
         aria-labelledby={`workspace-defaults-${tab}-tab`}
       >
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <p className="text-sm leading-6 text-ui-text-muted sm:whitespace-nowrap">
-            {tab === 'mcp' ? 'Workspace users have to explicitly enable the MCP servers they want to use, then configure authentication through the existing MCP setup.' : 'Workspace users have to explicitly enable the skills they want to use.'}
+          <p className="min-w-0 max-w-3xl text-sm leading-6 text-ui-text-muted">
+            {tab === 'mcp'
+              ? 'Workspace users explicitly enable the MCP servers they want to use. Each enabled server becomes workspace-owned and uses the existing MCP setup for authentication.'
+              : 'Workspace users explicitly enable the skills they want to use. Each enabled skill becomes workspace-owned.'}
           </p>
           {canMutate && (tab === 'mcp'
             ? <Button className="shrink-0" onClick={() => { setSelected(null); setDialog('add-mcp'); }}><Plus className="h-4 w-4" />Add MCP server</Button>
@@ -238,9 +241,34 @@ function DestinationChoices({ selected, onChange }: { selected: string[]; onChan
 function AddMcpDialog({ onClose, onDone }: any) {
   const [name, setName] = useState('');
   const [endpoint, setEndpoint] = useState('');
+  const [endpointTouched, setEndpointTouched] = useState(false);
   const [availableIn, setAvailableIn] = useState(allDestinations);
-  return <DefaultMutationDialog title="Add MCP Server" description="Add an HTTPS endpoint to the initialization list for new workspaces." submitLabel="Add MCP server" pendingLabel="Adding server…" submitDisabled={!name.trim() || !/^https:\/\//.test(endpoint) || !availableIn.length} request={() => adminApi('/workspace-defaults', { method: 'POST', body: { kind: 'mcp_server', name: name.trim(), availableIn, source: { type: 'https', endpoint }, reason: 'Added platform MCP server default' } })} onClose={onClose} onDone={onDone}>
-    <div className="grid gap-4 sm:grid-cols-2"><div><FieldLabel>Name</FieldLabel><TextInput value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. GitHub" className="mt-2" /></div><div><FieldLabel>HTTPS endpoint</FieldLabel><TextInput type="url" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder="https://mcp.example.com" className="mt-2" /></div></div>
+  const normalizedEndpoint = endpoint.trim();
+  const endpointIsValid = isValidPublicHttpsUrl(normalizedEndpoint);
+  const showEndpointError = endpointTouched && !endpointIsValid;
+  return <DefaultMutationDialog title="Add MCP Server" description="Add an HTTPS endpoint to the initialization list for new workspaces." submitLabel="Add MCP server" pendingLabel="Adding server…" submitDisabled={!name.trim() || !endpointIsValid || !availableIn.length} request={() => adminApi('/workspace-defaults', { method: 'POST', body: { kind: 'mcp_server', name: name.trim(), availableIn, source: { type: 'https', endpoint: normalizedEndpoint }, reason: 'Added platform MCP server default' } })} onClose={onClose} onDone={onDone}>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div><FieldLabel htmlFor="platform-mcp-name">Name</FieldLabel><TextInput id="platform-mcp-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. GitHub" className="mt-2" /></div>
+      <div>
+        <FieldLabel htmlFor="platform-mcp-endpoint">HTTPS endpoint</FieldLabel>
+        <TextInput
+          id="platform-mcp-endpoint"
+          type="url"
+          value={endpoint}
+          onChange={(event) => setEndpoint(event.target.value)}
+          onBlur={() => setEndpointTouched(true)}
+          placeholder="https://mcp.example.com"
+          aria-invalid={showEndpointError || undefined}
+          aria-describedby="platform-mcp-endpoint-help"
+          className="mt-2"
+        />
+        <HelpText id="platform-mcp-endpoint-help" className={showEndpointError ? 'text-status-danger-text' : undefined}>
+          {showEndpointError
+            ? 'Enter a public HTTPS URL without credentials, query parameters, fragments, localhost, or IP addresses.'
+            : 'Use a public HTTPS URL without credentials, query parameters, fragments, localhost, or IP addresses.'}
+        </HelpText>
+      </div>
+    </div>
     <InlineAlert tone="neutral"><strong className="text-ui-text">Authentication stays in each workspace.</strong> Workspace users configure authentication and credentials through the existing MCP setup.</InlineAlert>
     <DestinationChoices selected={availableIn} onChange={setAvailableIn} />
   </DefaultMutationDialog>;

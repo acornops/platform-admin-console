@@ -19,6 +19,8 @@
 - [LLM key card UI restore](llm-key-card-ui-restore.md)
 - [Manual Skill Defaults](manual-skill-defaults.md)
 - [Manual Skill Create Wizard](manual-skill-create-wizard.md)
+- [MCP Default Form Hardening](mcp-default-form-hardening.md)
+- [Workspace Starter Ownership Clarification](workspace-starter-ownership-clarification.md)
 
 These plans preserve delivery history. They are not current requirements and may describe interactions that were later removed or replaced. Use [`../../product-specs/current-requirements.md`](../../product-specs/current-requirements.md) and [`../../../DESIGN.md`](../../../DESIGN.md) for the accepted baseline.
 

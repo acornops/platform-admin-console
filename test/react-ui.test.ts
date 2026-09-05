@@ -338,8 +338,16 @@ test('capability defaults reuse the management underline tabs without adding Too
   assert.match(page, /sm:grid-cols-\[minmax\(0,1fr\)_12rem_auto\]/);
   assert.match(page, /<PageHeader title="Capabilities" description="New workspaces are created with these defaults, while existing workspaces remain unchanged\." \/>/);
   assert.match(page, /<div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">/);
-  assert.match(page, /<p className="text-sm leading-6 text-ui-text-muted sm:whitespace-nowrap">\s+\{tab === 'mcp'/);
+  assert.match(page, /<p className="min-w-0 max-w-3xl text-sm leading-6 text-ui-text-muted">\s+\{tab === 'mcp'/);
   assert.match(page, /<Button className="shrink-0"/);
+  assert.match(page, /isValidPublicHttpsUrl\(normalizedEndpoint\)/);
+  assert.match(page, /source: \{ type: 'https', endpoint: normalizedEndpoint \}/);
+  assert.match(page, /<FieldLabel htmlFor="platform-mcp-name">Name<\/FieldLabel>/);
+  assert.match(page, /<TextInput id="platform-mcp-name"/);
+  assert.match(page, /<FieldLabel htmlFor="platform-mcp-endpoint">HTTPS endpoint<\/FieldLabel>/);
+  assert.match(page, /id="platform-mcp-endpoint"/);
+  assert.match(page, /aria-describedby="platform-mcp-endpoint-help"/);
+  assert.match(page, /aria-invalid=\{showEndpointError \|\| undefined\}/);
   assert.match(page, /setDialog\('import-skill'\)/);
   assert.match(page, />Import skill<\/Button>/);
   assert.match(page, /setDialog\('create-skill'\)/);
@@ -364,8 +372,8 @@ test('capability defaults reuse the management underline tabs without adding Too
   assert.match(page, /files: \[\{ path: 'SKILL\.md', content: skillContent \}\]/);
   assert.doesNotMatch(page, /setDescription\(|setInstructions\(/);
   assert.match(page, /if \(item\.source\.type === 'manual'\) return 'Manual skill'/);
-  assert.match(page, /Workspace users have to explicitly enable the MCP servers they want to use, then configure authentication through the existing MCP setup\./);
-  assert.match(page, /Workspace users have to explicitly enable the skills they want to use\./);
+  assert.match(page, /Workspace users explicitly enable the MCP servers they want to use\. Each enabled server becomes workspace-owned and uses the existing MCP setup for authentication\./);
+  assert.match(page, /Workspace users explicitly enable the skills they want to use\. Each enabled skill becomes workspace-owned\./);
   assert.match(page, /const hasSelection = selected\.length > 0/);
   assert.match(page, /className="flex items-center justify-between gap-3"/);
   assert.match(page, /\{hasSelection \? 'Clear' : 'Select all'\}/);
