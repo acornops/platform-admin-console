@@ -18,6 +18,11 @@ the compiled `dist/` assets.
 
 ## Validation Ladder
 
+After building, `node scripts/verify-directory-hardening-browser.mjs` exercises
+delayed directory responses, retained-data failures/retry, bounded user pages,
+and accessible grant/plan/import labels against a local mock BFF. Set
+`PLAYWRIGHT_MODULE_PATH` to an installed Playwright ESM entry point when needed.
+
 - `npm run lint`: strict TypeScript checks for the React application and shared
   UI workspace, plus syntax checks for the server, policy, projection, and mock.
 - `npm run test`: policy, projection, mutation, HTTP, and denial tests.

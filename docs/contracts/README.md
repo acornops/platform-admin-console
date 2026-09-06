@@ -1,5 +1,13 @@
 # Platform Admin Console Contracts
 
+The additive `workspaceQuery` user-list parameter matches a case-insensitive
+literal substring of a membership workspace name or ID (maximum 200 characters).
+It combines with existing user filters and participates in the cursor signature.
+The console requests 25 summaries at a time; failures remain visible and no
+per-user membership fan-out is used. Deploy the control-plane producer first,
+then this consumer. Roll back the consumer first. No route, scope or response
+field is added; privacy projection and last-owner enforcement are unchanged.
+
 ## Source Of Truth
 
 The control plane owns `/admin/v1`. Its route implementation, Zod request schemas, OpenAPI sources, and `control-plane/docs/contracts/manifest.json` are authoritative. This repository mirrors only the approved governance subset in `docs/contracts/manifest.json`.

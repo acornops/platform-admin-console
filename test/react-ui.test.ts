@@ -16,7 +16,6 @@ import {
   rbacProfileRows
 } from '../src/components/KubernetesRbacAdditions';
 import { buildOverviewModel } from '../src/pages/OverviewPage';
-import { filterUsersByWorkspace } from '../src/pages/UsersPage';
 import {
   aiPolicyMutationValue,
   isAiPolicyMutationValid,
@@ -118,14 +117,6 @@ test('overview model remains governance-safe and contract-backed', () => {
   assert.equal(model.environmentLeaders[0].name, 'Beta');
   assert.equal(model.suspendedWorkspaceCount, 1);
   assert.equal(model.verifiedPercent, 50);
-});
-
-test('workspace filtering uses both workspace name and immutable id', () => {
-  const users = [{ id: 'u1' }, { id: 'u2' }];
-  const access = new Map([['u1', new Set(['ws-a'])], ['u2', new Set(['ws-b'])]]);
-  const workspaces = [{ id: 'ws-a', name: 'Alpha' }, { id: 'ws-b', name: 'Beta' }];
-  assert.deepEqual(filterUsersByWorkspace(users, access, workspaces, 'alpha'), [users[0]]);
-  assert.deepEqual(filterUsersByWorkspace(users, access, workspaces, 'ws-b'), [users[1]]);
 });
 
 test('setting comparison is order-insensitive for policy arrays', () => {

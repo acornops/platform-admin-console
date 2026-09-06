@@ -162,7 +162,8 @@
       "id": "REQ-USR-007",
       "summary": "Successful revocation immediately synchronizes panel, table, and active workspace-filter counts.",
       "evidence": [
-        { "file": "src/pages/UsersPage.tsx", "contains": ["void reload(); void onChanged()", "setAccessByUser", "visibleUsers"] }
+        { "file": "src/pages/UsersPage.tsx", "contains": ["void reload(); void onChanged()", "setUsers", "params.set('workspaceQuery', workspaceQuery)", "visibleUsers"] },
+        { "file": "test/user-workspace-query.test.mjs", "contains": ["workspaceQuery=ws_atlas", "emailVerified=true"] }
       ]
     },
     {

@@ -124,6 +124,16 @@ These are not current features. They stay disabled or absent until the producer 
 
 ## Current Contract Subset
 
+Directory reliability clarification (preserves REQ-WSP-001 and REQ-USR-001/007):
+filter changes invalidate earlier responses during the debounce interval and on
+unmount. Failed searches, refreshes and Load more retain available rows with an
+explicit stale-results warning and Retry. Users workspace filtering uses the
+producer's bounded `workspaceQuery` name-or-ID literal substring and ordinary
+25-row cursor pages, not per-user detail discovery. Workspace suggestions remain
+independent; their failure does not turn membership results into non-members.
+Existing visible grant, plan and skill-import labels are programmatically
+associated with their controls (REQ-UX-001, REQ-USR-009, REQ-DEF-001).
+
 The accepted consumer subset is 27 routes and 8 least-privilege scopes, mirrored in `docs/contracts/manifest.json` and enforced by `lib/admin-route-policy.mjs` and `lib/admin-contract.mjs`. Adding an endpoint, query, scope, or payload field is a contract change, not a UI convenience; update producer and consumer artifacts together and record any necessary deviation in `DESIGN.md`.
 
 ## Accepted hosted policy integration — 2026-09-06

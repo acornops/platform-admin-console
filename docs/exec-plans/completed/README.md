@@ -1,5 +1,7 @@
 # Completed Execution Plans
 
+- [Platform Release Hardening](platform-release-hardening.md)
+
 - [Admin User Last Login](admin-user-last-login.md)
 - [Admin Audit Event Filter Coverage](admin-audit-event-filter-coverage.md)
 - [Admin Audit Event Sentences](admin-audit-event-sentences.md)

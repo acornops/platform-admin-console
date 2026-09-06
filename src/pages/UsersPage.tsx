@@ -25,19 +25,10 @@ import { formatDate, formatMembershipLifecycle, titleCase } from '../lib';
 import { ActionDialog } from '../components/ActionDialog';
 
 const userPageLimit = 25;
-const filterPageLimit = 100;
-
-export function filterUsersByWorkspace(users: any[], accessByUser: Map<string, Set<string>>, workspaces: any[], value: string) {
-  const query = value.trim().toLowerCase();
-  if (!query) return users;
-  const ids = new Set(workspaces.filter((workspace) => [workspace.name, workspace.id].some((field) => String(field || '').toLowerCase().includes(query))).map((workspace) => workspace.id));
-  return users.filter((user) => [...(accessByUser.get(user.id) || [])].some((workspaceId) => ids.has(workspaceId)));
-}
 
 export function UsersPage(props: PageProps) {
   const [users, setUsers] = useState<any[]>([]);
   const [workspaces, setWorkspaces] = useState<any[]>([]);
-  const [accessByUser, setAccessByUser] = useState<Map<string, Set<string>>>(new Map());
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
@@ -47,51 +38,40 @@ export function UsersPage(props: PageProps) {
   const [nextCursor, setNextCursor] = useState('');
   const nextCursorRef = useRef('');
   const requestSequence = useRef(0);
+  const pendingRef = useRef(false);
+  const [retryAppend, setRetryAppend] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState('');
 
   const load = useCallback(async ({ append = false }: { append?: boolean } = {}) => {
-    if (append && (!nextCursorRef.current || workspaceFilter.trim())) return;
+    if (append && (pendingRef.current || !nextCursorRef.current)) return;
     const requestId = ++requestSequence.current;
+    pendingRef.current = true;
     if (append) setLoadingMore(true);
     else setLoading(true);
     setError('');
     try {
       const workspaceQuery = workspaceFilter.trim();
-      const params = new URLSearchParams({ limit: String(workspaceQuery ? filterPageLimit : userPageLimit) });
+      const params = new URLSearchParams({ limit: String(userPageLimit) });
       if (search.trim()) params.set('q', search.trim());
+      if (workspaceQuery) params.set('workspaceQuery', workspaceQuery);
       if (verification !== 'all') params.set('emailVerified', String(verification === 'verified'));
       if (append) params.set('cursor', nextCursorRef.current);
-      let page = await adminApi<{ items: any[]; nextCursor?: string }>(`/users?${params}`);
+      const page = await adminApi<{ items: any[]; nextCursor?: string }>(`/users?${params}`);
       const loadedUsers = [...(page.items || [])];
-      while (workspaceQuery && page.nextCursor) {
-        params.set('cursor', page.nextCursor);
-        page = await adminApi<{ items: any[]; nextCursor?: string }>(`/users?${params}`);
-        loadedUsers.push(...(page.items || []));
-      }
       if (requestId !== requestSequence.current) return;
-
-      if (workspaceQuery) {
-        const details = await Promise.all(loadedUsers.map(async (user) => {
-          try { return [user.id, await adminApi<any>(`/users/${encodeURIComponent(user.id)}`)] as const; }
-          catch { return [user.id, null] as const; }
-        }));
-        if (requestId !== requestSequence.current) return;
-        setAccessByUser(new Map(details.map(([id, detail]) => [
-          id,
-          new Set<string>((detail?.memberships || []).map((membership: any) => membership.workspaceId))
-        ])));
-      }
 
       setUsers((current) => append
         ? [...current, ...loadedUsers.filter((user) => !current.some((known) => known.id === user.id))]
         : loadedUsers);
-      nextCursorRef.current = workspaceQuery ? '' : page.nextCursor || '';
+      nextCursorRef.current = page.nextCursor || '';
       setNextCursor(nextCursorRef.current);
     } catch (reason) {
-      if (requestId === requestSequence.current) setError(readableError(reason));
+      if (requestId === requestSequence.current) { setError(readableError(reason)); setRetryAppend(append); }
     } finally {
       if (requestId === requestSequence.current) {
         setLoading(false);
         setLoadingMore(false);
+        pendingRef.current = false;
       }
     }
   }, [search, verification, workspaceFilter]);
@@ -100,21 +80,20 @@ export function UsersPage(props: PageProps) {
     let active = true;
     void loadAllPages<any>('/workspaces')
       .then((items) => { if (active) setWorkspaces(items); })
-      .catch((reason) => { if (active) setError(readableError(reason)); });
+      .catch((reason) => { if (active) setWorkspaceError(readableError(reason)); });
     return () => { active = false; };
   }, []);
 
   useEffect(() => {
+    nextCursorRef.current = '';
+    setNextCursor('');
+    setLoading(true);
+    pendingRef.current = true;
     const timer = window.setTimeout(() => void load(), 240);
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); ++requestSequence.current; };
   }, [load]);
 
-  const visibleUsers = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    let next = users.filter((user) => !query || [user.displayName, user.email, user.id].some((field) => String(field || '').toLowerCase().includes(query)));
-    if (verification !== 'all') next = next.filter((user) => Boolean(user.emailVerified) === (verification === 'verified'));
-    return filterUsersByWorkspace(next, accessByUser, workspaces, workspaceFilter);
-  }, [accessByUser, search, users, verification, workspaceFilter, workspaces]);
+  const visibleUsers = users;
 
   return (
     <>
@@ -144,7 +123,9 @@ export function UsersPage(props: PageProps) {
           </StatusBadge>
         </div>
       }>
-        {loading && !users.length ? <LoadingState label="Loading users" /> : error && !users.length ? <div className="p-5"><InlineAlert tone="danger">{error}</InlineAlert></div> : visibleUsers.length ? (
+        {workspaceError && <div className="p-5"><InlineAlert tone="danger">Workspace suggestions are unavailable. {workspaceError}</InlineAlert></div>}
+        {error && <div className="p-5"><InlineAlert tone="danger">{users.length ? 'Showing previously loaded users; results may not match the current filters. ' : ''}{error}<Button className="mt-2" disabled={loading || loadingMore} onClick={() => void load({ append: retryAppend })}>Retry</Button></InlineAlert></div>}
+        {loading && !users.length ? <LoadingState label="Loading users" /> : visibleUsers.length ? (
           <>
             <DataTableFrame aria-busy={loading || loadingMore}>
               <DataTable caption="Users">
@@ -159,7 +140,7 @@ export function UsersPage(props: PageProps) {
                   {visibleUsers.map((user) => (
                     <tr key={user.id} className="data-row cursor-pointer" aria-selected={props.resourceId === user.id} tabIndex={0} onClick={() => props.navigate(`/users/${encodeURIComponent(user.id)}`)} onKeyDown={(event) => { if (event.key === 'Enter') props.navigate(`/users/${encodeURIComponent(user.id)}`); }}>
                       <td data-primary="true" data-label="User" className="px-5 py-4"><strong className="block text-sm text-ui-text">{user.displayName || user.email}</strong><span className="block break-all text-xs text-ui-text-muted">{user.email}</span></td>
-                      <td data-label="Workspaces" className="px-5 py-4 text-sm tabular-nums text-ui-text">{accessByUser.get(user.id)?.size ?? user.workspaceMembershipCount ?? 0}</td>
+                      <td data-label="Workspaces" className="px-5 py-4 text-sm tabular-nums text-ui-text">{user.workspaceMembershipCount ?? 0}</td>
                       <td data-label="Status" className="px-5 py-4">
                         {user.emailVerified ? (
                           <StatusBadge tone="success" className="gap-1.5">
@@ -180,16 +161,15 @@ export function UsersPage(props: PageProps) {
                 </tbody>
               </DataTable>
             </DataTableFrame>
-            {nextCursor && !workspaceFilter.trim() && (
+            {nextCursor && (
               <div className="flex justify-center border-t border-ui-border p-4">
-                <Button onClick={() => void load({ append: true })} disabled={loadingMore}>
+                <Button onClick={() => void load({ append: true })} disabled={loading || loadingMore}>
                   {loadingMore ? 'Loading…' : 'Load more'}
                 </Button>
               </div>
             )}
-            {error && <div className="p-4"><InlineAlert tone="danger">Unable to load more users. {error}</InlineAlert></div>}
           </>
-        ) : <EmptyState embedded icon={<Users />} title="No Users Found" description="No users match the current search or filters." />}
+        ) : !error && <EmptyState embedded icon={<Users />} title="No Users Found" description="No users match the current search or filters." />}
       </DataSurface>
       {props.resourceId && <UserPanel {...props} userId={props.resourceId} workspaces={workspaces} onClose={() => props.navigate('/users', { replace: true })} onChanged={() => void load()} />}
     </>
@@ -361,8 +341,8 @@ function GrantUserDialog({ user, memberships, workspaces, roles, onClose, onDone
   const [role, setRole] = useState(roles.includes('member') ? 'member' : roles[0] || '');
   const workspace = available.find((item: any) => item.id === workspaceId);
   return <MembershipMutationDialog title={`Grant Workspace Access To ${user.displayName || user.email}`} description="Select a workspace and role. This changes workspace access only." submitLabel="Grant Access" submitDisabled={!workspaceId || !role} request={() => adminApi(`/workspaces/${encodeURIComponent(workspaceId)}/members`, { method: 'POST', body: { userId: user.id, role, createUserIfMissing: false, reason: `Platform admin granted ${titleCase(role)} access to ${workspace?.name || workspaceId}` } })} onClose={onClose} onDone={onDone}>
-    <div><FieldLabel>Workspace</FieldLabel><Select value={workspaceId} onChange={setWorkspaceId} options={available.map((item: any) => ({ value: item.id, label: item.name }))} /></div>
-    <div><FieldLabel>Workspace Role</FieldLabel><Select value={role} onChange={setRole} options={roles.map((value: string) => ({ value, label: titleCase(value) }))} /></div>
+    <div><FieldLabel htmlFor="grant-workspace">Workspace</FieldLabel><Select id="grant-workspace" ariaLabel="Workspace" value={workspaceId} onChange={setWorkspaceId} options={available.map((item: any) => ({ value: item.id, label: item.name }))} /></div>
+    <div><FieldLabel htmlFor="grant-user-role">Workspace Role</FieldLabel><Select id="grant-user-role" ariaLabel="Workspace Role" value={role} onChange={setRole} options={roles.map((value: string) => ({ value, label: titleCase(value) }))} /></div>
   </MembershipMutationDialog>;
 }
 

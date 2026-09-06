@@ -16,7 +16,7 @@ try {
   await page.getByRole('heading', { name: 'Effective Limits And Usage' }).waitFor();
   for (const pool of ['Chat', 'Agent', 'Workflow', 'Auto Triage', 'Insights']) assert.ok(await page.getByText(pool, { exact: true }).count());
   await page.getByRole('button', { name: 'Change Plan' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Enterprise', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Plan', exact: true }).click();
   await page.getByRole('option', { name: 'Starter' }).click();
   await page.getByRole('button', { name: 'Update Plan', exact: true }).click();
   await page.getByText('Retain existing resources and let active work drain under the new limits.', { exact: true }).waitFor();

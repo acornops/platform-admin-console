@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Search, UserMinus, UserRoundPlus, Users } from 'lucide-react';
 import {
   Button,
@@ -36,35 +36,49 @@ export function WorkspacesPage(props: PageProps) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'all' | 'active' | 'suspended'>('all');
   const [totalWorkspaceCount, setTotalWorkspaceCount] = useState(0);
+  const nextCursorRef = useRef('');
+  const requestSequence = useRef(0);
+  const pendingRef = useRef(false);
+  const [retryAppend, setRetryAppend] = useState(false);
 
   const load = useCallback(async (append = false) => {
+    if (append && (pendingRef.current || !nextCursorRef.current)) return;
+    const requestId = ++requestSequence.current;
+    pendingRef.current = true;
     setLoading(true);
     setError('');
     try {
       if (status !== 'all') {
         const all = await loadAllPages<any>(`/workspaces${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ''}`);
+        if (requestId !== requestSequence.current) return;
         setItems(all.filter((workspace) => workspace.lifecycleStatus === status));
+        nextCursorRef.current = '';
         setNextCursor('');
       } else {
         const params = new URLSearchParams({ limit: String(pageLimit) });
         if (query.trim()) params.set('q', query.trim());
-        if (append && nextCursor) params.set('cursor', nextCursor);
+        if (append) params.set('cursor', nextCursorRef.current);
         const page = await adminApi<{ items: any[]; nextCursor?: string }>(`/workspaces?${params}`);
+        if (requestId !== requestSequence.current) return;
         setItems((current) => append ? [...current, ...page.items.filter((item) => !current.some((known) => known.id === item.id))] : page.items);
+        nextCursorRef.current = page.nextCursor || '';
         setNextCursor(page.nextCursor || '');
       }
     } catch (reason) {
-      setError(readableError(reason));
+      if (requestId === requestSequence.current) { setError(readableError(reason)); setRetryAppend(append); }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) { setLoading(false); pendingRef.current = false; }
     }
-  }, [nextCursor, query, status]);
+  }, [query, status]);
 
   useEffect(() => {
+    nextCursorRef.current = '';
+    setNextCursor('');
+    setLoading(true);
+    pendingRef.current = true;
     const timer = window.setTimeout(() => void load(false), 240);
-    return () => window.clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, status]);
+    return () => { window.clearTimeout(timer); ++requestSequence.current; };
+  }, [load]);
   useEffect(() => {
     let active = true;
     void loadAllPages<any>('/workspaces')
@@ -100,11 +114,10 @@ export function WorkspacesPage(props: PageProps) {
           </div>
         }
       >
-        {loading && !items.length ? <LoadingState label="Loading workspaces" /> : error && !items.length ? (
-          <div className="p-5"><InlineAlert tone="danger">{error}</InlineAlert></div>
-        ) : items.length ? (
+        {error && <div className="p-5"><InlineAlert tone="danger">{items.length ? 'Showing previously loaded workspaces; results may not match the current filters. ' : ''}{error}<Button className="mt-2" disabled={loading} onClick={() => void load(retryAppend)}>Retry</Button></InlineAlert></div>}
+        {loading && !items.length ? <LoadingState label="Loading workspaces" /> : items.length ? (
           <>
-            <DataTableFrame>
+            <DataTableFrame aria-busy={loading}>
               <DataTable caption="Workspaces">
                 <thead><tr>
                   <DataTableHeaderCell density="compact">Workspace</DataTableHeaderCell>
@@ -141,7 +154,7 @@ export function WorkspacesPage(props: PageProps) {
             {nextCursor && <div className="flex justify-center border-t border-ui-border p-4"><Button onClick={() => void load(true)} disabled={loading}>{loading ? 'Loading…' : 'Load more'}</Button></div>}
           </>
         ) : (
-          <EmptyState embedded icon={<Users />} title="No Workspaces Found" description="No workspaces match this search or filter." />
+          !error && <EmptyState embedded icon={<Users />} title="No Workspaces Found" description="No workspaces match this search or filter." />
         )}
       </DataSurface>
       {selectedId && <WorkspacePanel {...props} workspaceId={selectedId} onClose={closePanel} onChanged={refresh} />}
@@ -355,8 +368,8 @@ function GrantDialog({ workspace, members, users, roles, onClose, onDone }: any)
   const [userId, setUserId] = useState(available[0]?.id || '');
   const [role, setRole] = useState(roles.includes('member') ? 'member' : roles[0] || '');
   return <MutationDialog title={`Grant Access To ${workspace.name}`} description="Select an existing user and workspace role." submitLabel="Grant Access" onClose={onClose} onDone={onDone} request={() => adminApi(`/workspaces/${encodeURIComponent(workspace.id)}/members`, { method: 'POST', body: { userId, role, createUserIfMissing: false, reason: `Platform admin granted ${titleCase(role)} access to ${workspace.name}` } })} submitDisabled={!userId || !role}>
-    <div><FieldLabel>User</FieldLabel><Select value={userId} onChange={setUserId} options={available.map((user: any) => ({ value: user.id, label: user.displayName || user.email }))} /></div>
-    <div><FieldLabel>Workspace Role</FieldLabel><Select value={role} onChange={setRole} options={roles.map((value: string) => ({ value, label: titleCase(value) }))} /></div>
+    <div><FieldLabel htmlFor="grant-user">User</FieldLabel><Select id="grant-user" ariaLabel="User" value={userId} onChange={setUserId} options={available.map((user: any) => ({ value: user.id, label: user.displayName || user.email }))} /></div>
+    <div><FieldLabel htmlFor="grant-workspace-role">Workspace Role</FieldLabel><Select id="grant-workspace-role" ariaLabel="Workspace Role" value={role} onChange={setRole} options={roles.map((value: string) => ({ value, label: titleCase(value) }))} /></div>
   </MutationDialog>;
 }
 
