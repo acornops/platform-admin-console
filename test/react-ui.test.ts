@@ -578,13 +578,14 @@ test('workspace details use compact metadata and explicit inline access actions'
   assert.match(workspaces, /<DataTableFrame className="-mx-4 border-t border-ui-border sm:-mx-5">/);
   assert.doesNotMatch(workspaces, /-mx-4 border-y border-ui-border sm:-mx-5/);
   assert.match(workspaces, /Revoke access to \$\{workspace\.name\}\?/);
-  assert.match(workspaces, /<FieldLabel htmlFor="workspace-confirmation" className="text-sm font-normal leading-5 normal-case tracking-normal">[\s\S]*Type <strong className="font-semibold">\{workspace\.name\}<\/strong> to confirm[\s\S]*<\/FieldLabel>/);
+  const policyDialog = await readFile(new URL('../src/components/WorkspacePolicy.tsx', import.meta.url), 'utf8');
+  assert.match(policyDialog, /<FieldLabel htmlFor="workspace-confirmation" className="text-sm font-normal leading-5 normal-case tracking-normal">[\s\S]*Type <strong className="font-semibold">\{workspace\.name\}<\/strong> to confirm[\s\S]*<\/FieldLabel>/);
   assert.doesNotMatch(workspaces, /<FieldLabel htmlFor="workspace-confirmation">Type <strong>/);
   assert.match(workspaces, /<InlineAlert tone="neutral" className="bg-ui-surface-strong">/);
   assert.match(workspaces, /Workspace access will be removed immediately/);
   assert.doesNotMatch(workspaces, /Workspace Access Will Be Removed Immediately/);
   assert.match(workspaces, /The user keeps their AcornOps account and access to other workspaces\./);
-  assert.match(workspaces, /variant=\{workspace\.lifecycleStatus === 'suspended' \? 'secondary' : 'dangerSoft'\}/);
+  assert.match(workspaces, /variant=\{hasAdminHold \? 'secondary' : 'dangerSoft'\}/);
   assert.match(button, /dangerSoft: 'border border-status-danger\/20 bg-status-danger-soft text-status-danger-text/);
 });
 

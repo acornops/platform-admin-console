@@ -24,6 +24,8 @@ import type { PageProps } from '../app-types';
 import { formatDate, sortMembers, titleCase, workspaceCreatorName } from '../lib';
 import { ActionDialog } from '../components/ActionDialog';
 
+import { WorkspacePolicyDialog, WorkspacePolicySummary } from '../components/WorkspacePolicy';
+
 const pageLimit = 25;
 
 export function WorkspacesPage(props: PageProps) {
@@ -153,6 +155,8 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
   onChanged: () => void;
 }) {
   const [workspace, setWorkspace] = useState<any>(null);
+  const [policy, setPolicy] = useState<any>(null);
+  const [planCatalog, setPlanCatalog] = useState<any>(null);
   const [config, setConfig] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -167,13 +171,17 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
   const reload = useCallback(async () => {
     setError('');
     try {
-      const [detail, systemConfig, memberItems, allUsers] = await Promise.all([
+      const [detail, systemConfig, memberItems, allUsers, currentPolicy, catalog] = await Promise.all([
         adminApi(`/workspaces/${encodeURIComponent(workspaceId)}`),
         adminApi('/system/config'),
         loadAllPages(`/workspaces/${encodeURIComponent(workspaceId)}/members`),
-        loadAllPages('/users')
+        loadAllPages('/users'),
+        adminApi(`/workspaces/${encodeURIComponent(workspaceId)}/policy`),
+        adminApi('/workspace-plans')
       ]);
       setWorkspace(detail);
+      setPolicy(currentPolicy);
+      setPlanCatalog(catalog);
       setConfig(systemConfig);
       const sortedMembers = sortMembers(memberItems);
       setMembers(sortedMembers);
@@ -186,8 +194,9 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
 
   useEffect(() => { void reload(); }, [reload]);
   const titleId = 'workspace-panel-title';
-  const plans = config?.planCatalog?.plans || [];
-  const plan = plans.find((item: any) => item.key === workspace?.plan?.key);
+  const plans = planCatalog?.plans || [];
+  const plan = { quotas: policy?.effectiveLimits?.quotas };
+  const hasAdminHold = policy?.holds.some((hold: any) => hold.source === 'admin');
   const ownerCount = members.filter((member) => member.role === 'owner').length;
   const updateMemberRole = async (member: any, nextRole: string) => {
     setAccessError('');
@@ -244,6 +253,7 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
                 <DetailItem term="Created">{formatDate(workspace.createdAt)}</DetailItem>
               </dl>
             </section>
+            {policy && <WorkspacePolicySummary policy={policy} />}
             <PageSection
               compact
               title={(
@@ -316,21 +326,20 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
             <PageSection
               compact
               title="Workspace Lifecycle"
-              description={workspace.lifecycleStatus === 'suspended' ? 'Restore member access using the retained workspace memberships.' : 'Suspend member access while retaining memberships, targets, workloads, references, and audit history.'}
+              description={workspace.lifecycleStatus === 'suspended' ? 'Remove the admin hold; an external hold can keep access suspended.' : 'Suspend member access while retaining memberships, targets, workloads, references, and audit history.'}
               className="!mt-0 px-4 py-3 sm:px-5"
               actions={<StatusBadge tone={workspace.lifecycleStatus === 'suspended' ? 'warning' : 'success'} className="gap-1.5">
                 {workspace.lifecycleStatus !== 'suspended' && <span className="h-2 w-2 rounded-full bg-status-success" aria-hidden="true" />}
                 {titleCase(workspace.lifecycleStatus || 'active')}
               </StatusBadge>}
             >
-              <HelpText>This action does not stop or modify workloads.</HelpText>
-              {canMutate && <Button className="mt-3 w-full" variant={workspace.lifecycleStatus === 'suspended' ? 'secondary' : 'dangerSoft'} onClick={() => setDialog('lifecycle')}>{workspace.lifecycleStatus === 'suspended' ? 'Restore Workspace' : 'Suspend Workspace'}</Button>}
+              <HelpText>Suspension cancels queued work and requests controlled cancellation of running work. Resources and memberships are retained.</HelpText>
+              {canMutate && <Button className="mt-3 w-full" variant={hasAdminHold ? 'secondary' : 'dangerSoft'} onClick={() => setDialog('lifecycle')}>{hasAdminHold ? 'Restore Workspace' : 'Suspend Workspace'}</Button>}
             </PageSection>
           </>
         )}
       </div>
-      {dialog === 'plan' && <PlanDialog workspace={workspace} plans={plans} onClose={() => setDialog(null)} onDone={() => { setDialog(null); void reload(); onChanged(); notify('Plan successfully updated.'); }} />}
-      {dialog === 'lifecycle' && <LifecycleDialog workspace={workspace} onClose={() => setDialog(null)} onDone={() => { setDialog(null); void reload(); onChanged(); notify(`Workspace successfully ${workspace.lifecycleStatus === 'suspended' ? 'restored' : 'suspended'}.`); }} />}
+      {(dialog === 'plan' || dialog === 'lifecycle') && policy && <WorkspacePolicyDialog workspace={workspace} policy={policy} plans={plans} action={dialog === 'plan' ? 'plan' : hasAdminHold ? 'restore' : 'suspend'} onClose={() => setDialog(null)} onDone={(result: any) => { setDialog(null); void reload(); onChanged(); notify(dialog === 'plan' ? 'Plan successfully updated.' : result.policy?.lifecycleStatus === 'suspended' ? 'Workspace remains suspended. Active holds are shown in the policy summary.' : 'Workspace access restored.'); }} />}
       {dialog === 'grant' && <GrantDialog workspace={workspace} members={members} users={users} roles={config.roleTemplateKeys || []} onClose={() => setDialog(null)} onDone={() => { setDialog(null); void reload(); onChanged(); notify('Workspace access successfully granted.'); }} />}
       {dialog === 'revoke' && selectedMember && <RevokeDialog workspace={workspace} member={selectedMember} onClose={() => setDialog(null)} onDone={() => { setDialog(null); void reload(); onChanged(); notify('Workspace access successfully revoked.'); }} />}
     </RightSidePanel>
@@ -339,25 +348,6 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
 
 function DetailItem({ term, children }: { term: string; children: ReactNode }) {
   return <div className="min-w-0"><dt className="type-label">{term}</dt><dd className="mt-1.5 break-words text-sm text-ui-text">{children}</dd></div>;
-}
-
-function PlanDialog({ workspace, plans, onClose, onDone }: any) {
-  const [planKey, setPlanKey] = useState(workspace.plan.key);
-  return <MutationDialog title={`Change ${workspace.name} Plan`} description="Updates the plan and configured limits without modifying tenant workloads." submitLabel="Update Plan" onClose={onClose} onDone={onDone} request={() => adminApi(`/workspaces/${encodeURIComponent(workspace.id)}/plan`, { method: 'PATCH', body: { planKey, reason: `Platform admin changed workspace plan from ${workspace.plan.key} to ${planKey}` } })} submitDisabled={planKey === workspace.plan.key}>
-    <FieldLabel>Plan</FieldLabel><Select value={planKey} onChange={setPlanKey} options={plans.map((plan: any) => ({ value: plan.key, label: plan.name }))} />
-  </MutationDialog>;
-}
-
-function LifecycleDialog({ workspace, onClose, onDone }: any) {
-  const [confirmation, setConfirmation] = useState('');
-  const restoring = workspace.lifecycleStatus === 'suspended';
-  return <MutationDialog title={`${restoring ? 'Restore' : 'Suspend'} ${workspace.name}`} description={restoring ? 'Restores member access through retained memberships.' : 'Blocks member access while retaining memberships, targets, workloads, references, and audit history.'} submitLabel={`${restoring ? 'Restore' : 'Suspend'} Workspace`} danger={!restoring} onClose={onClose} onDone={onDone} request={() => adminApi(`/workspaces/${encodeURIComponent(workspace.id)}/${restoring ? 'restore' : 'suspend'}`, { method: 'POST', body: { workspaceName: confirmation, reason: `Platform admin ${restoring ? 'restored' : 'suspended'} workspace member access` } })} submitDisabled={confirmation !== workspace.name}>
-    <FieldLabel htmlFor="workspace-confirmation" className="text-sm font-normal leading-5 normal-case tracking-normal">
-      Type <strong className="font-semibold">{workspace.name}</strong> to confirm
-    </FieldLabel>
-    <TextInput id="workspace-confirmation" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" />
-    <HelpText>The name must match exactly. This action does not change workloads.</HelpText>
-  </MutationDialog>;
 }
 
 function GrantDialog({ workspace, members, users, roles, onClose, onDone }: any) {

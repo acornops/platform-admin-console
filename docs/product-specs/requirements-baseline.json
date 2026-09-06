@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "lastReviewed": "2026-08-03",
+  "lastReviewed": "2026-09-06",
   "authority": "docs/product-specs/current-requirements.md",
   "expectedRuntime": {
-    "adminRouteCount": 25,
+    "adminRouteCount": 27,
     "allowedScopeCount": 8
   },
   "normativeSources": [
@@ -197,12 +197,63 @@
     },
     {
       "id": "REQ-WSP-002",
-      "summary": "A management-width workspace panel and condensed unboxed summary show readable creator identities plus neutral plan-derived Kubernetes and VM connection limits, using compact 12-pixel section wrappers without inherited section margins or dividers and reserving red for exceptions.",
+      "summary": "Workspace summary displays read-only effective resource limits, explicit overrides and five independent execution pool usage counts.",
       "evidence": [
-        { "file": "src/pages/WorkspacesPage.tsx", "contains": ["<RightSidePanel isOpen", "type-panel-title", "gap-x-5 gap-y-3", "compact", "className=\"px-4 py-3 sm:px-5\"", "className=\"!mt-0 px-4 py-3 sm:px-5\"", "workspaceCreatorName", "Kubernetes Clusters", "Virtual Machines", "plan?.quotas?.kubernetesClusters", "Change Plan"], "excludes": ["sm:max-w-[min(56rem,92vw)]", "<Card><dl className=\"definition-grid\"", "className=\"border-t border-ui-border px-4 py-4 sm:px-5\"", "className=\"px-4 py-4 sm:px-5\""] },
-        { "file": "packages/ui/src/PageComposition.tsx", "contains": ["compact?: boolean", "compact ? 'type-panel-title text-ui-text' : 'type-section-title text-ui-text'"] },
-        { "file": "packages/ui/src/RightSidePanel.tsx", "contains": ["sm:max-w-[min(45rem,92vw)]"] },
-        { "file": "src/lib.ts", "contains": ["createdByDisplayName", "createdByEmail", "workspace.createdBy"] }
+        {
+          "file": "src/pages/WorkspacesPage.tsx",
+          "contains": [
+            "<RightSidePanel isOpen",
+            "type-panel-title",
+            "gap-x-5 gap-y-3",
+            "compact",
+            "className=\"px-4 py-3 sm:px-5\"",
+            "className=\"!mt-0 px-4 py-3 sm:px-5\"",
+            "workspaceCreatorName",
+            "Kubernetes Clusters",
+            "Virtual Machines",
+            "plan?.quotas?.kubernetesClusters",
+            "Change Plan"
+          ],
+          "excludes": [
+            "sm:max-w-[min(56rem,92vw)]",
+            "<Card><dl className=\"definition-grid\"",
+            "className=\"border-t border-ui-border px-4 py-4 sm:px-5\"",
+            "className=\"px-4 py-4 sm:px-5\""
+          ]
+        },
+        {
+          "file": "packages/ui/src/PageComposition.tsx",
+          "contains": [
+            "compact?: boolean",
+            "compact ? 'type-panel-title text-ui-text' : 'type-section-title text-ui-text'"
+          ]
+        },
+        {
+          "file": "packages/ui/src/RightSidePanel.tsx",
+          "contains": [
+            "sm:max-w-[min(45rem,92vw)]"
+          ]
+        },
+        {
+          "file": "src/lib.ts",
+          "contains": [
+            "createdByDisplayName",
+            "createdByEmail",
+            "workspace.createdBy"
+          ]
+        },
+        {
+          "file": "src/components/WorkspacePolicy.tsx",
+          "contains": [
+            "quotaOverrides",
+            "effectiveLimits",
+            "concurrentRuns",
+            "outstandingRuns",
+            "autoTriage",
+            "insights",
+            "read-only"
+          ]
+        }
       ]
     },
     {
@@ -218,9 +269,48 @@
       "id": "REQ-WSP-004",
       "summary": "Workspace lifecycle is visible with Active status dots and a pale-danger suspend trigger; suspension and restoration require exact-name confirmation with sentence-case guidance that preserves workspace-name capitalization and retain reliable cancellation.",
       "evidence": [
-        { "file": "src/pages/WorkspacesPage.tsx", "contains": ["Workspace Lifecycle", "Restore Workspace", "Suspend Workspace", "variant={workspace.lifecycleStatus === 'suspended' ? 'secondary' : 'dangerSoft'}", "h-2 w-2 rounded-full bg-status-success", "confirmation !== workspace.name", "workspaceName: confirmation", "className=\"text-sm font-normal leading-5 normal-case tracking-normal\"", "Type <strong className=\"font-semibold\">{workspace.name}</strong> to confirm", "This action does not stop or modify workloads."], "excludes": ["<FieldLabel htmlFor=\"workspace-confirmation\">Type <strong>"] },
-        { "file": "packages/ui/src/Button.tsx", "contains": ["dangerSoft", "bg-status-danger-soft", "text-status-danger-text"] },
-        { "file": "src/components/ActionDialog.tsx", "contains": ["Cancel", "type=\"submit\"", "onClose"] }
+        {
+          "file": "src/pages/WorkspacesPage.tsx",
+          "contains": [
+            "Workspace Lifecycle",
+            "Restore Workspace",
+            "Suspend Workspace",
+            "variant={hasAdminHold ? 'secondary' : 'dangerSoft'}",
+            "controlled cancellation"
+          ],
+          "excludes": [
+            "<FieldLabel htmlFor=\"workspace-confirmation\">Type <strong>"
+          ]
+        },
+        {
+          "file": "packages/ui/src/Button.tsx",
+          "contains": [
+            "dangerSoft",
+            "bg-status-danger-soft",
+            "text-status-danger-text"
+          ]
+        },
+        {
+          "file": "src/components/ActionDialog.tsx",
+          "contains": [
+            "Cancel",
+            "type=\"submit\"",
+            "onClose"
+          ]
+        },
+        {
+          "file": "src/components/WorkspacePolicy.tsx",
+          "contains": [
+            "confirmation !== workspace.name",
+            "workspaceName: confirmation",
+            "source: 'admin'",
+            "expectedPolicyVersion",
+            "crypto.randomUUID()",
+            "WORKSPACE_POLICY_VERSION_CONFLICT",
+            "retain_existing",
+            "Type <strong className=\"font-semibold\">{workspace.name}</strong> to confirm"
+          ]
+        }
       ]
     },
     {
@@ -257,9 +347,55 @@
     { "id": "EXC-012", "summary": "An Owner membership in one workspace does not block individual revocation of unrelated workspace access.", "evidence": [{ "file": "src/pages/UsersPage.tsx", "contains": ["The user keeps their AcornOps account and access to other workspaces."], "excludes": ["owner in another workspace"] }] },
     { "id": "EXC-013", "summary": "Open dropdown chevrons remain grey rather than changing to orange.", "evidence": [{ "file": "packages/ui/src/Select.tsx", "contains": ["text-ui-text-muted transition-transform", "rotate-180"], "excludes": ["isOpen && 'rotate-180 text-accent"] }] },
     { "id": "EXC-014", "summary": "Workspace suggestions and clear affordance do not use native datalist or browser clear controls.", "evidence": [{ "file": "src/pages/UsersPage.tsx", "excludes": ["<datalist", "list=\"workspace"] }] },
-    { "id": "EXC-015", "summary": "Workspace quota policies, usage rows, override controls, and the legacy quota route are excluded from this plan-based consumer.", "evidence": [{ "file": "src/pages/WorkspacesPage.tsx", "excludes": ["quota override", "/quota", "Override quota"] }] },
-    { "id": "EXC-016", "summary": "Workspace suspension and restoration confirmations exclude free-form reason and ticket-reference fields while retaining deterministic producer-required reasons.", "evidence": [{ "file": "src/pages/WorkspacesPage.tsx", "contains": ["Platform admin ${restoring ? 'restored' : 'suspended'} workspace member access"], "excludes": ["ticketRef", "name=\"reason\""] }] },
-    { "id": "EXC-017", "summary": "Change Plan excludes free-form reason and ticket-reference fields while retaining a deterministic producer-required reason.", "evidence": [{ "file": "src/pages/WorkspacesPage.tsx", "contains": ["Platform admin changed workspace plan from"], "excludes": ["ticketRef", "Plan change reason"] }] },
+    {
+      "id": "EXC-015",
+      "summary": "Quota override editing and quota mutation routes remain excluded; read-only effective policy and usage are permitted.",
+      "evidence": [
+        {
+          "file": "src/components/WorkspacePolicy.tsx",
+          "excludes": [
+            "/quotas",
+            "Override quota"
+          ],
+          "contains": [
+            "quotaOverrides",
+            "read-only"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXC-016",
+      "summary": "Workspace suspension and restoration confirmations exclude free-form reason and ticket-reference fields while retaining deterministic producer-required reasons.",
+      "evidence": [
+        {
+          "file": "src/components/WorkspacePolicy.tsx",
+          "contains": [
+            "Platform admin ${restoring ? 'restored' : 'suspended'} workspace member access"
+          ],
+          "excludes": [
+            "ticketRef",
+            "name=\"reason\""
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXC-017",
+      "summary": "Change Plan excludes free-form reason and ticket-reference fields while retaining a deterministic producer-required reason.",
+      "evidence": [
+        {
+          "file": "src/components/WorkspacePolicy.tsx",
+          "contains": [
+            "Platform admin changed workspace plan from"
+          ],
+          "excludes": [
+            "ticketRef",
+            "Plan change reason"
+          ]
+        }
+      ]
+    },
     { "id": "EXC-018", "summary": "Consumer-orchestrated sequential all-workspace revocation is excluded until an atomic preview-and-mutation contract exists.", "evidence": [{ "file": "src/pages/UsersPage.tsx", "excludes": ["Promise.all(memberships", "Revoke all workspace access"] }] }
   ],
   "blocked": [

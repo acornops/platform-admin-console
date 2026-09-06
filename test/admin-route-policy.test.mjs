@@ -4,7 +4,7 @@ import { ADMIN_ROUTE_DEFINITIONS, isGovernanceOnlyUpstreamPath, matchAdminRoute,
 import { ALLOWED_ADMIN_SCOPES, FORBIDDEN_ADMIN_SCOPES, projectAdminResponse, validateAdminIdentity } from "../lib/admin-contract.mjs";
 
 test("all runtime routes use the admin namespace and governance-only nouns", () => {
-  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 25);
+  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 27);
   for (const route of ADMIN_ROUTE_DEFINITIONS) {
     assert.equal(isGovernanceOnlyUpstreamPath(route.upstreamTemplate), true, route.upstreamTemplate);
     assert.ok(ALLOWED_ADMIN_SCOPES.includes(route.requiredScope), route.requiredScope);
@@ -149,9 +149,9 @@ test("projects Kubernetes RBAC effective, deployment, and overlay values separat
 test("requires narrow exact-name lifecycle bodies", () => {
   for (const action of ["suspend", "restore"]) {
     const route = matchAdminRoute("POST", `/workspaces/ws_atlas/${action}`);
-    assert.deepEqual(sanitizedAdminBody(route, { workspaceName: "Atlas", reason: "Support hold", ticketRef: "AO-3" }), {
+    assert.deepEqual(sanitizedAdminBody(route, { workspaceName: "Atlas", reason: "Support hold", source: "admin", requestId: "request-123", expectedPolicyVersion: 0 }), {
       ok: true,
-      body: { workspaceName: "Atlas", reason: "Support hold", ticketRef: "AO-3" }
+      body: { workspaceName: "Atlas", reason: "Support hold", source: "admin", requestId: "request-123", expectedPolicyVersion: 0 }
     });
     assert.equal(sanitizedAdminBody(route, { reason: "Support hold" }).ok, false);
     assert.equal(sanitizedAdminBody(route, { workspaceName: " Atlas ", reason: "Support hold", destructive: true }).ok, false);
@@ -387,4 +387,25 @@ test("denies operational, tenant-audit, arbitrary, and wrong-method routes", () 
     ["GET", "/../api/v1/workspaces"]
   ];
   for (const [method, path] of forbidden) assert.equal(matchAdminRoute(method, path), null, `${method} ${path}`);
+});
+
+test("projects five-pool policy and independent holds without tenant records or private reasons", () => {
+  const policy = { workspaceId: "ws", workspaceName: "Atlas", policyVersion: 4, lifecycleStatus: "suspended", plan: { key: "team", name: "Team" }, quotaOverrides: { members: 8, secret: "hidden" }, effectiveLimits: { quotas: { members: 8 }, executionLimits: { chat: { maxConcurrentRuns: 2, maxOutstandingRuns: 4, runIds: ["secret"] } } }, usage: { members: 3, execution: { chat: { concurrentRuns: 1, outstandingRuns: 2, runs: ["secret"] } } }, holds: [{ source: "external", publicReason: "Access paused", createdAt: "2026-09-06", privateReason: "hidden" }], runs: ["secret"] };
+  const result = projectAdminResponse(matchAdminRoute("GET", "/workspaces/ws/policy"), policy);
+  assert.deepEqual(Object.keys(result.usage.execution), ["chat", "agent", "workflow", "autoTriage", "insights"]);
+  assert.deepEqual(result.effectiveLimits.executionLimits.agent, { maxConcurrentRuns: null, maxOutstandingRuns: null });
+  assert.equal(result.quotaOverrides.members, 8);
+  assert.ok(!JSON.stringify(result).includes("secret") && !JSON.stringify(result).includes("privateReason"));
+  const mutation = projectAdminResponse(matchAdminRoute("POST", "/workspaces/ws/restore"), { before: {}, after: {}, policy, changed: true });
+  assert.equal(mutation.policy.lifecycleStatus, "suspended");
+  assert.equal(mutation.changed, true);
+});
+
+test("policy mutations require versioned idempotent intents and cannot write external holds or overrides", () => {
+  const plan = matchAdminRoute("PATCH", "/workspaces/ws/plan");
+  const body = { planKey: "team", reason: "Approved change", requestId: "request-123", expectedPolicyVersion: 3, overLimitBehavior: "retain_existing" };
+  assert.equal(sanitizedAdminBody(plan, body).ok, true);
+  for (const patch of [{ expectedPolicyVersion: undefined }, { requestId: "" }, { quotaOverrides: {} }, { overLimitBehavior: "delete" }]) assert.equal(sanitizedAdminBody(plan, { ...body, ...patch }).ok, false);
+  const hold = matchAdminRoute("POST", "/workspaces/ws/restore");
+  assert.equal(sanitizedAdminBody(hold, { workspaceName: "Atlas", reason: "Restore access", source: "external", requestId: "request-123", expectedPolicyVersion: 3 }).ok, false);
 });

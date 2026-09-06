@@ -22,7 +22,7 @@ The console has one runtime service dependency: `control-plane`. It does not cal
 - The membership panel satisfies the required role-mutation `reason` with a deterministic description of the previous and next role; it omits optional `ticketRef` rather than collecting either value in another dialog.
 - Workspace-access grants identify an existing user by `userId`, force `createUserIfMissing: false`, use a contract-provided role, and supply a deterministic reason.
 - The console requires the exact workspace name for suspension and restoration and supplies a deterministic reason without collecting a reason or ticket. Both actions retain memberships, targets, workload state, references, and audit history.
-- Workspace limits are plan-defined in this consumer. The legacy producer quota-override endpoint is intentionally excluded from the console subset.
+- Workspace limits combine the selected plan and existing explicit resource overrides. The policy GET projects read-only quotaOverrides, effectiveLimits, five-pool aggregate execution usage, policyVersion and independent admin/external holds. The quota-override mutation endpoint remains excluded from the console subset.
 - The upstream credential uses only the mirrored required scopes and is rejected if it contains `admin:*` or operational scopes.
 - The consumer subset excludes session access, email-based user resolution, and account creation. It permits workspace-access grants only for existing users.
 - Producer errors retain `{ error: { code, message, retryable, details? } }`.
@@ -84,3 +84,5 @@ The console has one runtime service dependency: `control-plane`. It does not cal
 3. Update route policy, scope, query allowlist, projection, mock, frontend, and tests together.
 4. Add or update the deviation ledger when the browser contract is intentionally narrower.
 5. Run `npm run contracts:check`, the control-plane contract check, and the parent cross-repository contract check.
+
+Workspace policy writes carry a unique requestId and observed expectedPolicyVersion. Identical retries reuse the exact payload and ID; a version conflict reloads policy and requires a deliberate new submission. Plan changes preserve overrides and default to rejecting over-limit usage; retain_existing requires explicit confirmation. Lifecycle writes always select source=admin, with exact workspace-name confirmation and deterministic reasons. The BFF projects mutation policy and changed fields so external holds cannot be mistaken for a successful full restoration.

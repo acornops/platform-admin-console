@@ -306,7 +306,7 @@ test("mock admin audit groups workspace access and status actions", async () => 
   await withServer({ mode: "mock" }, async (base) => {
     await fetch(`${base}/admin-console-api/workspaces/ws_atlas/members`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: "usr_noor", role: "member", createUserIfMissing: false, reason: "Test grouped access filter" }) });
     await fetch(`${base}/admin-console-api/workspaces/ws_atlas/members/usr_noor`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ reason: "Test grouped access filter" }) });
-    await fetch(`${base}/admin-console-api/workspaces/ws_lumen/suspend`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceName: "Lumen Cooperative", reason: "Test grouped status filter" }) });
+    await fetch(`${base}/admin-console-api/workspaces/ws_lumen/suspend`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceName: "Lumen Cooperative", reason: "Test grouped status filter", source: "admin", requestId: "grouped-status-1", expectedPolicyVersion: 0 }) });
     const access = await fetch(`${base}/admin-console-api/admin-audit-events?actionGroup=workspace_access_modified`).then((response) => response.json());
     const status = await fetch(`${base}/admin-console-api/admin-audit-events?actionGroup=workspace_status_modified`).then((response) => response.json());
     assert.deepEqual(new Set(access.items.map((event) => event.action)), new Set(["admin.workspace.member.add", "admin.workspace.member.delete", "admin.member.role.update"]));
@@ -769,13 +769,13 @@ test("workspace access grant cannot create or resolve a user account", async () 
 
 test("mock plan and workspace lifecycle mutations accept control-plane field names", async () => {
   await withServer({ mode: "mock" }, async (base) => {
-    const plan = await fetch(`${base}/admin-console-api/workspaces/ws_lumen/plan`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ planKey: "enterprise", reason: "Approved change", ticketRef: "AO-21" }) });
+    const plan = await fetch(`${base}/admin-console-api/workspaces/ws_lumen/plan`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ planKey: "enterprise", reason: "Approved change", requestId: "plan-request-21", expectedPolicyVersion: 0, overLimitBehavior: "reject" }) });
     assert.equal(plan.status, 200);
     assert.equal((await plan.json()).after.plan.key, "enterprise");
-    const suspension = await fetch(`${base}/admin-console-api/workspaces/ws_atlas/suspend`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceName: "Atlas Research", reason: "Approved support hold", ticketRef: "AO-22" }) });
+    const suspension = await fetch(`${base}/admin-console-api/workspaces/ws_atlas/suspend`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceName: "Atlas Research", reason: "Approved support hold", source: "admin", requestId: "hold-request-22", expectedPolicyVersion: 0 }) });
     assert.equal(suspension.status, 200);
     assert.equal((await suspension.json()).after.lifecycleStatus, "suspended");
-    const restoration = await fetch(`${base}/admin-console-api/workspaces/ws_atlas/restore`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceName: "Atlas Research", reason: "Support hold cleared" }) });
+    const restoration = await fetch(`${base}/admin-console-api/workspaces/ws_atlas/restore`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceName: "Atlas Research", reason: "Support hold cleared", source: "admin", requestId: "restore-request-23", expectedPolicyVersion: 1 }) });
     assert.equal(restoration.status, 200);
     assert.equal((await restoration.json()).after.lifecycleStatus, "active");
   });
@@ -783,7 +783,7 @@ test("mock plan and workspace lifecycle mutations accept control-plane field nam
 
 test("mock plan downgrade and mismatched lifecycle confirmations are rejected", async () => {
   await withServer({ mode: "mock" }, async (base) => {
-    const plan = await fetch(`${base}/admin-console-api/workspaces/ws_atlas/plan`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ planKey: "starter", reason: "Invalid downgrade" }) });
+    const plan = await fetch(`${base}/admin-console-api/workspaces/ws_atlas/plan`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ planKey: "starter", reason: "Invalid downgrade", requestId: "downgrade-request-1", expectedPolicyVersion: 0, overLimitBehavior: "reject" }) });
     assert.equal(plan.status, 400);
     const suspension = await fetch(`${base}/admin-console-api/workspaces/ws_atlas/suspend`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceName: "atlas research", reason: "Invalid confirmation" }) });
     assert.equal(suspension.status, 400);

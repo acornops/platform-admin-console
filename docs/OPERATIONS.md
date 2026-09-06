@@ -39,3 +39,5 @@ Before live promotion, verify the exact hostname and callback URI, IdP issuer/au
 - Never enable a denied route to work around an operational incident.
 - Preserve platform-admin audit events and request IDs for investigation.
 - A repeated `missing_human_session` burst paired with browser reloads indicates an expired admin session. Confirm that the console's `/admin-auth/oidc/login` returns an IdP redirect or the deliberate sign-in-unavailable page rather than the SPA document, then inspect `control_plane_admin_auth_failures_total` and structured control-plane logs using the correlated request ID.
+
+Deploy the control-plane workspace policy and plan reads before this console. Admin lifecycle controls manipulate only the admin hold; an external hold keeps the workspace suspended. Policy usage is aggregate and read-only. Override edits remain API-only. Stale policy versions require a fresh deliberate confirmation, and ambiguous failures can retry the same exact intent without issuing a second policy change.
