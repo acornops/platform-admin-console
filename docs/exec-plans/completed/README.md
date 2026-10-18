@@ -46,3 +46,12 @@ These plans preserve delivery history. They are not current requirements and may
 - [Management console UI alignment](management-console-ui-alignment.md)
 - [Harness and contract alignment](harness-and-contract-alignment.md)
 - [Platform admin console prototype](platform-admin-console-prototype.md)
+
+## Archived after main reconciliation — 2026-10-18
+
+These records describe landed or superseded implementation, not fresh release
+certification. Each archive note preserves outstanding acceptance or historical limitations.
+
+- [Configurable Help Links](configurable-help-links.md)
+- [Hosted console integration](hosted-console-integration.md)
+- [User Sign-In Methods](user-sign-in-methods.md)
