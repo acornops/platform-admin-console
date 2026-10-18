@@ -31,11 +31,19 @@ const actionLabels = new Map([
 ]);
 
 export function buildAuditQuery(values: Record<string, unknown>, from = '', to = '') {
+  const rangeError = auditRangeError(from, to);
+  if (rangeError) throw new Error(rangeError);
   const query = new URLSearchParams();
   Object.entries(values || {}).forEach(([key, value]) => { if (String(value || '').trim()) query.set(key, String(value).trim()); });
   if (from) query.set('from', new Date(from).toISOString());
   if (to) query.set('to', new Date(to).toISOString());
   return query;
+}
+
+export function auditRangeError(from: string, to: string): string {
+  if ((from && !Number.isFinite(Date.parse(from))) || (to && !Number.isFinite(Date.parse(to)))) return 'Enter valid date and time values.';
+  if (from && to && Date.parse(from) > Date.parse(to)) return 'From must not be later than To.';
+  return '';
 }
 
 export function auditPresetRange(preset: string, currentTime = new Date()) {
@@ -165,6 +173,16 @@ export function AuditPage({ notify }: PageProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef(false);
   const requestSequence = useRef(0);
+  const rangeError = auditRangeError(filters.from, filters.to);
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const actionGroup = filters.action.startsWith('group:');
+  const draftQuery = rangeError ? null : buildAuditQuery({
+    [actionGroup ? 'actionGroup' : 'action']: filters.action.replace(/^group:/, ''),
+    workspaceQuery: filters.workspaceQuery,
+    adminActorSubject: filters.adminActorSubject,
+    outcome: filters.outcome
+  }, filters.from, filters.to);
+  const hasUnappliedFilters = draftQuery?.toString() !== activeQuery.toString();
 
   const load = useCallback(async (append = false, query = activeQuery) => {
     if (append && (loadingRef.current || !nextCursor)) return;
@@ -203,13 +221,9 @@ export function AuditPage({ notify }: PageProps) {
 
   const apply = (event: FormEvent) => {
     event.preventDefault();
-    const actionGroup = filters.action.startsWith('group:');
-    const query = buildAuditQuery({
-      [actionGroup ? 'actionGroup' : 'action']: filters.action.replace(/^group:/, ''),
-      workspaceQuery: filters.workspaceQuery,
-      adminActorSubject: filters.adminActorSubject,
-      outcome: filters.outcome
-    }, filters.from, filters.to);
+    if (!draftQuery) return;
+    const query = draftQuery;
+    setNextCursor('');
     setActiveQuery(query);
     void load(false, query);
   };
@@ -227,6 +241,7 @@ export function AuditPage({ notify }: PageProps) {
       outcome: next.outcome
     }, next.from, next.to);
     setActiveQuery(query);
+    setNextCursor('');
     void load(false, query);
   };
   const clear = () => {
@@ -235,6 +250,7 @@ export function AuditPage({ notify }: PageProps) {
     setActiveTimePreset('');
     setCustomRangeOpen(false);
     setActiveQuery(new URLSearchParams());
+    setNextCursor('');
     void load(false, new URLSearchParams());
   };
 
@@ -243,8 +259,9 @@ export function AuditPage({ notify }: PageProps) {
       <PageHeader className="audit-page-header" title="Admin Audit" description="A platform-level record of privileged admin actions. Workspace audit events are intentionally omitted, and should be viewed in the respective workspace-level audit." />
       <DataSurface className="audit-surface">
         <form className="border-b border-ui-border bg-ui-surface p-4" onSubmit={apply}>
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-            <Select value={filters.action} onChange={(action) => setFilters((current) => ({ ...current, action }))} ariaLabel="Filter by event" options={[
+          <div className="grid items-start gap-2 md:grid-cols-2 xl:grid-cols-4">
+            <div className="min-w-0"><label htmlFor="audit-event" className="mb-1 block text-xs font-semibold text-ui-text-muted">Event</label>
+            <Select id="audit-event" value={filters.action} onChange={(action) => setFilters((current) => ({ ...current, action }))} ariaLabel="Filter by event" options={[
               { value: '', label: 'All events' },
               { value: 'admin.workspace.plan.update', label: 'Changed Workspace Plan' },
               { value: 'group:workspace_status_modified', label: 'Modified Workspace Status' },
@@ -252,10 +269,16 @@ export function AuditPage({ notify }: PageProps) {
               { value: 'group:platform_settings_modified', label: 'Modified Platform Settings' },
               { value: 'group:llm_provider_defaults_modified', label: 'Modified AI Providers Defaults' },
               { value: 'group:workspace_defaults_modified', label: 'Modified Capabilities Defaults' }
-            ]} />
-            <TextInput value={filters.workspaceQuery} onChange={(event) => setFilters((current) => ({ ...current, workspaceQuery: event.target.value }))} placeholder="Workspace name or ID" aria-label="Filter by workspace name or ID" />
-            <TextInput value={filters.adminActorSubject} onChange={(event) => setFilters((current) => ({ ...current, adminActorSubject: event.target.value }))} placeholder="Admin actor" aria-label="Filter by admin actor" />
-            <Select value={filters.outcome} onChange={(outcome) => setFilters((current) => ({ ...current, outcome }))} ariaLabel="Filter by outcome" options={[{ value: '', label: 'All outcomes' }, { value: 'success', label: 'Success' }, { value: 'failure', label: 'Failure' }]} />
+            ]} /></div>
+            <div className="min-w-0"><label htmlFor="audit-workspace" className="mb-1 block text-xs font-semibold text-ui-text-muted">Workspace</label>
+            <TextInput id="audit-workspace" value={filters.workspaceQuery} onChange={(event) => setFilters((current) => ({ ...current, workspaceQuery: event.target.value }))} placeholder="Workspace name or ID" aria-label="Filter by workspace name or ID" /></div>
+            <div className="min-w-0">
+              <label htmlFor="audit-actor-subject" className="mb-1 block text-xs font-semibold text-ui-text-muted">Admin actor subject</label>
+              <TextInput id="audit-actor-subject" value={filters.adminActorSubject} onChange={(event) => setFilters((current) => ({ ...current, adminActorSubject: event.target.value }))} placeholder="OIDC subject identifier" aria-describedby="audit-actor-help" />
+              <p id="audit-actor-help" className="mt-1 text-xs text-ui-text-muted">Exact OIDC subject identifier, not a name or email search.</p>
+            </div>
+            <div className="min-w-0"><label htmlFor="audit-outcome" className="mb-1 block text-xs font-semibold text-ui-text-muted">Outcome</label>
+            <Select id="audit-outcome" value={filters.outcome} onChange={(outcome) => setFilters((current) => ({ ...current, outcome }))} ariaLabel="Filter by outcome" options={[{ value: '', label: 'All outcomes' }, { value: 'success', label: 'Success' }, { value: 'failure', label: 'Failure' }]} /></div>
           </div>
           <div className="mt-4 flex min-w-0 flex-col gap-3 border-t border-ui-border pt-4 lg:flex-row lg:items-center lg:justify-between">
             <fieldset>
@@ -280,15 +303,18 @@ export function AuditPage({ notify }: PageProps) {
             </fieldset>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
               <Button className="w-full sm:w-auto" type="button" onClick={clear}>Clear</Button>
-              <Button className="w-full sm:w-auto" type="submit" variant="primary">Apply filters</Button>
+              <Button className="w-full sm:w-auto" type="submit" variant="primary" disabled={Boolean(rangeError)}>Apply filters</Button>
             </div>
           </div>
           {customRangeOpen && (
             <div id="audit-custom-range" className="mt-3 grid min-w-0 gap-3 rounded-lg border border-ui-border bg-ui-bg p-3 sm:grid-cols-2 lg:max-w-[34rem]">
-              <label className="min-w-0 text-xs font-semibold text-ui-text-muted">From<TextInput type="datetime-local" value={filters.from} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} className="mt-1 min-w-0" /></label>
-              <label className="min-w-0 text-xs font-semibold text-ui-text-muted">To<TextInput type="datetime-local" value={filters.to} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} className="mt-1 min-w-0" /></label>
+              <p id="audit-range-help" className="text-xs text-ui-text-muted sm:col-span-2">Times use {timeZone}. From and To are inclusive at the entered minute (seconds :00).</p>
+              <label className="min-w-0 text-xs font-semibold text-ui-text-muted">From<TextInput type="datetime-local" value={filters.from} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} aria-invalid={Boolean(rangeError)} aria-describedby={rangeError ? 'audit-range-help audit-range-error' : 'audit-range-help'} className="mt-1 min-w-0" /></label>
+              <label className="min-w-0 text-xs font-semibold text-ui-text-muted">To<TextInput type="datetime-local" value={filters.to} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} aria-invalid={Boolean(rangeError)} aria-describedby={rangeError ? 'audit-range-help audit-range-error' : 'audit-range-help'} className="mt-1 min-w-0" /></label>
+              {rangeError && <p id="audit-range-error" role="alert" className="text-xs text-status-danger-text sm:col-span-2">{rangeError}</p>}
             </div>
           )}
+          <p role="status" className="mt-3 break-words text-xs text-ui-text-muted">{hasUnappliedFilters ? 'Changes not applied. Select Apply filters to update the results.' : activeQuery.size ? 'Showing results for the applied filters.' : 'Showing all admin events.'}</p>
         </form>
         {loading && !items.length ? <LoadingState label="Loading governance events" /> : error && !items.length ? <div className="p-5"><InlineAlert tone="danger">{error}</InlineAlert></div> : items.length ? (
           <>

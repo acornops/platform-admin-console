@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { CheckCircle2, Trash2 } from 'lucide-react';
 import {
   Button,
@@ -187,9 +187,9 @@ function MemberDiscovery(props: any) {
     disabled: 'Workspace owners can only send invitation links. The invited person is added after they accept the invitation.'
   };
   return <SettingFrame {...props} title="Member Discovery" description="Controls how workspace owners add people to their workspace." value={{ mode }}>
-    <FieldLabel>Discovery mode</FieldLabel>
-    <Select value={mode} onChange={setMode} className="mt-2 max-w-sm" options={(setting?.constraints?.allowedModes || []).map((value: string) => ({ value, label: discoveryLabels[value] || value }))} />
-    <HelpText>{notes[mode]}</HelpText>
+    <FieldLabel htmlFor="discovery-mode">Discovery mode</FieldLabel>
+    <Select id="discovery-mode" ariaDescribedBy="discovery-mode-help" value={mode} onChange={setMode} className="mt-2 max-w-sm" options={(setting?.constraints?.allowedModes || []).map((value: string) => ({ value, label: discoveryLabels[value] || value }))} />
+    <HelpText id="discovery-mode-help">{notes[mode]}</HelpText>
   </SettingFrame>;
 }
 
@@ -218,14 +218,15 @@ function SignInMethods(props: any) {
 }
 
 function HelpLinks(props: any) {
+  const fieldId = useId();
   const setting = props.setting;
   const [value, setValue] = useState(setting?.value || productHelpLinks);
   useEffect(() => setValue(setting?.value || productHelpLinks), [setting]);
   if (!setting) return <PageSection title={<span className="flex flex-wrap items-center gap-2">Help &amp; Support Links<StatusBadge>Product Default</StatusBadge></span>} description="These links appear on the Help page for every workspace.">
     <Card className="p-5">
       <div className="grid gap-5 sm:grid-cols-2">
-        <div><FieldLabel>Documentation URL</FieldLabel><TextInput type="url" value={productHelpLinks.documentationUrl} disabled className="mt-2 w-full" /></div>
-        <div><FieldLabel>Contact Support URL</FieldLabel><TextInput type="url" value={productHelpLinks.supportUrl} disabled className="mt-2 w-full" /></div>
+        <div><FieldLabel htmlFor={`${fieldId}-documentation`}>Documentation URL</FieldLabel><TextInput id={`${fieldId}-documentation`} type="url" value={productHelpLinks.documentationUrl} disabled className="mt-2 w-full" /></div>
+        <div><FieldLabel htmlFor={`${fieldId}-support`}>Contact Support URL</FieldLabel><TextInput id={`${fieldId}-support`} type="url" value={productHelpLinks.supportUrl} disabled className="mt-2 w-full" /></div>
       </div>
       <InlineAlert tone="neutral" className="mt-4">The product defaults remain active. Upgrade the control plane to manage these links.</InlineAlert>
     </Card>
@@ -234,14 +235,14 @@ function HelpLinks(props: any) {
   return <SettingFrame {...props} title="Help & Support Links" description="These links appear on the Help page for every workspace." value={value} defaultSourceLabel="Product Default" resetTargetLabel="product default" warningLabel="Product default applied." saveDisabled={!isHelpLinksMutationValid(value)}>
     <div className="grid gap-5 sm:grid-cols-2">
       <div>
-        <FieldLabel>Documentation URL</FieldLabel>
-        <TextInput type="url" maxLength={2048} value={value.documentationUrl} onChange={(event) => update('documentationUrl', event.target.value.trim())} aria-invalid={!validHttpsDestination(value.documentationUrl)} className="mt-2 w-full" />
-        <HelpText>Use a complete HTTPS URL.</HelpText>
+        <FieldLabel htmlFor={`${fieldId}-documentation`}>Documentation URL</FieldLabel>
+        <TextInput id={`${fieldId}-documentation`} aria-describedby={`${fieldId}-documentation-help`} type="url" maxLength={2048} value={value.documentationUrl} onChange={(event) => update('documentationUrl', event.target.value.trim())} aria-invalid={!validHttpsDestination(value.documentationUrl)} className="mt-2 w-full" />
+        <HelpText id={`${fieldId}-documentation-help`}>Use a complete HTTPS URL.</HelpText>
       </div>
       <div>
-        <FieldLabel>Contact Support URL</FieldLabel>
-        <TextInput type="url" maxLength={2048} value={value.supportUrl} onChange={(event) => update('supportUrl', event.target.value.trim())} aria-invalid={!validSupportDestination(value.supportUrl)} className="mt-2 w-full" />
-        <HelpText>Use a complete HTTPS URL or a mailto address.</HelpText>
+        <FieldLabel htmlFor={`${fieldId}-support`}>Contact Support URL</FieldLabel>
+        <TextInput id={`${fieldId}-support`} aria-describedby={`${fieldId}-support-help`} type="url" maxLength={2048} value={value.supportUrl} onChange={(event) => update('supportUrl', event.target.value.trim())} aria-invalid={!validSupportDestination(value.supportUrl)} className="mt-2 w-full" />
+        <HelpText id={`${fieldId}-support-help`}>Use a complete HTTPS URL or a mailto address.</HelpText>
       </div>
     </div>
   </SettingFrame>;
@@ -259,6 +260,7 @@ function ProviderDefaults({ values, error, canMutate, reload, notify }: any) {
 }
 
 function ProviderCard({ provider, status, canMutate, reload, notify }: any) {
+  const fieldId = useId();
   const [apiKey, setApiKey] = useState('');
   const [pending, setPending] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -274,13 +276,13 @@ function ProviderCard({ provider, status, canMutate, reload, notify }: any) {
   };
   return <Card className="flex min-h-64 flex-col p-4">
     <div className="flex items-center justify-between gap-2"><strong className="text-sm text-ui-text">{providerLabels[provider]}</strong><StatusBadge tone={status.configured ? 'success' : 'neutral'}>{status.configured ? 'Configured' : 'Not configured'}</StatusBadge></div>
-    {!status.enabled && <HelpText>Disabled by deployment policy.</HelpText>}
-    <div className="mt-5"><FieldLabel>{status.configured ? 'Rotate API key' : 'Add API key'}</FieldLabel><TextInput type="password" autoComplete="new-password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={`Paste ${providerLabels[provider]} key`} disabled={!canMutate || !status.enabled || pending} className="mt-2" /></div>
+    {!status.enabled && <HelpText id={`${fieldId}-disabled`}>Disabled by deployment policy.</HelpText>}
+    <div className="mt-5"><FieldLabel htmlFor={fieldId}><span className="sr-only">{providerLabels[provider]} </span>{status.configured ? 'Rotate API key' : 'Add API key'}</FieldLabel><TextInput id={fieldId} aria-describedby={[!status.enabled && `${fieldId}-disabled`, error && `${fieldId}-error`].filter(Boolean).join(' ') || undefined} type="password" autoComplete="new-password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={`Paste ${providerLabels[provider]} key`} disabled={!canMutate || !status.enabled || pending} className="mt-2" /></div>
     <div className="mt-auto flex flex-wrap justify-end gap-2 pt-5">
       <Button size="sm" disabled={!apiKey.trim() || pending || !canMutate || !status.enabled} onClick={() => void mutate('PUT')}><CheckCircle2 className="h-4 w-4" /> {status.configured ? 'Rotate key' : 'Save key'}</Button>
       {status.configured && <Button variant="danger" size="sm" disabled={!canMutate || pending} onClick={() => confirmDelete ? void mutate('DELETE') : setConfirmDelete(true)}><Trash2 className="h-4 w-4" /> {confirmDelete ? 'Confirm delete' : 'Delete key'}</Button>}
     </div>
-    {error && <p className="mt-3 text-xs text-status-danger-text" role="alert">{error}</p>}
+    {error && <p id={`${fieldId}-error`} className="mt-3 text-xs text-status-danger-text" role="alert">{error}</p>}
   </Card>;
 }
 
@@ -305,8 +307,8 @@ function AiPolicy(props: any) {
   });
   return <SettingFrame {...props} title="AI Policy" description="Limits workspace provider, model, and reasoning choices." value={mutationValue} saveDisabled={!isAiPolicyMutationValid(mutationValue)}>
     <div className="grid gap-4 sm:grid-cols-2">
-      <div><FieldLabel>Default provider</FieldLabel><Select value={value.defaultProvider || ''} onChange={(provider) => setValue((current: any) => ({ ...current, defaultProvider: provider, defaultModel: current.providerModels?.[provider]?.[0] || models[provider]?.[0] || '' }))} className="mt-2" options={availableProviders.map((provider) => ({ value: provider, label: providerLabels[provider] }))} /></div>
-      <div><FieldLabel>Default model</FieldLabel><Select value={value.defaultModel || ''} onChange={(defaultModel) => setValue((current: any) => ({ ...current, defaultModel }))} className="mt-2" options={(value.providerModels?.[value.defaultProvider] || []).map((model: string) => ({ value: model, label: model }))} /></div>
+      <div><FieldLabel htmlFor="default-provider">Default provider</FieldLabel><Select id="default-provider" value={value.defaultProvider || ''} onChange={(provider) => setValue((current: any) => ({ ...current, defaultProvider: provider, defaultModel: current.providerModels?.[provider]?.[0] || models[provider]?.[0] || '' }))} className="mt-2" options={availableProviders.map((provider) => ({ value: provider, label: providerLabels[provider] }))} /></div>
+      <div><FieldLabel htmlFor="default-model">Default model</FieldLabel><Select id="default-model" value={value.defaultModel || ''} onChange={(defaultModel) => setValue((current: any) => ({ ...current, defaultModel }))} className="mt-2" options={(value.providerModels?.[value.defaultProvider] || []).map((model: string) => ({ value: model, label: model }))} /></div>
     </div>
     <fieldset className="mt-6"><legend className="text-sm font-semibold text-ui-text">Available Models</legend><div className="mt-3 grid gap-4 sm:grid-cols-3">{availableProviders.map((provider) => <div key={provider}><strong className="text-xs text-ui-text-muted">{providerLabels[provider]}</strong><div className="mt-2 space-y-2">{models[provider].map((model: string) => <label className="flex items-center gap-2 text-sm text-ui-text" key={model}><Checkbox checked={value.providerModels?.[provider]?.includes(model) || false} onChange={() => toggleModel(provider, model)} />{model}</label>)}</div></div>)}</div></fieldset>
     <fieldset className="mt-6"><legend className="text-sm font-semibold text-ui-text">Reasoning</legend>

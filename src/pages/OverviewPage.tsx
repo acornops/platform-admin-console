@@ -48,7 +48,7 @@ export function OverviewPage({ navigate }: PageProps) {
   const metrics = [
     { label: 'Workspaces', value: model.workspaceCount, detail: 'Active platform customers and internal teams', icon: PanelsTopLeft },
     { label: 'Users', value: model.userCount, detail: `${model.verifiedPercent}% identity verification`, icon: Users },
-    { label: 'Connected Environments', value: model.environmentCount, detail: `${model.kubernetesCount} Kubernetes · ${model.virtualMachineCount} VMs`, icon: Server }
+    { label: 'Connected Environments', value: model.environmentCount, detail: `${model.kubernetesCount} Kubernetes · ${model.virtualMachineCount} ${model.virtualMachineCount === 1 ? 'VM' : 'VMs'}`, icon: Server }
   ];
 
   return (
@@ -93,7 +93,7 @@ export function OverviewPage({ navigate }: PageProps) {
                   >
                     <span className="type-caption grid h-7 w-7 shrink-0 place-items-center rounded-full bg-ui-surface-strong">{index + 1}</span>
                     <button className="type-row-title min-w-0 flex-1 truncate text-left hover:text-accent-readable" onClick={() => navigate(`/workspaces/${encodeURIComponent(workspace.id)}`)}>{workspace.name}</button>
-                    <strong className="type-caption text-right">{workspace.environmentCount} total ({workspace.clusterCount} clusters · {workspace.virtualMachineCount} VMs)</strong>
+                    <strong className="type-caption text-right">{workspace.environmentCount} total ({workspace.clusterCount} {workspace.clusterCount === 1 ? 'cluster' : 'clusters'} · {workspace.virtualMachineCount} {workspace.virtualMachineCount === 1 ? 'VM' : 'VMs'})</strong>
                   </li>
                 ))}
               </ol>
@@ -110,13 +110,13 @@ export function OverviewPage({ navigate }: PageProps) {
               {
                 value: model.suspendedWorkspaceCount,
                 title: `${model.suspendedWorkspaceCount} Suspended workspace${model.suspendedWorkspaceCount === 1 ? '' : 's'}`,
-                detail: model.suspendedWorkspaceCount ? `${model.suspendedWorkspaceCount} of ${model.workspaceCount} workspaces have suspended member access.` : `All ${model.workspaceCount} workspaces are available to members.`,
+                detail: model.suspendedWorkspaceCount ? `${model.suspendedWorkspaceCount} of ${model.workspaceCount} workspace${model.workspaceCount === 1 ? '' : 's'} ${model.suspendedWorkspaceCount === 1 ? 'has' : 'have'} suspended member access.` : model.workspaceCount === 0 ? 'No workspaces are recorded.' : model.workspaceCount === 1 ? 'The workspace is available to members.' : `All ${model.workspaceCount} workspaces are available to members.`,
                 path: '/workspaces'
               },
               {
                 value: model.unverifiedUserCount,
                 title: model.unverifiedUserCount ? 'Identity verification needs follow-up' : 'All identities are verified',
-                detail: model.unverifiedUserCount ? `${model.unverifiedUserCount} user accounts remain unverified.` : 'Every current user account has completed verification.',
+                detail: model.unverifiedUserCount ? `${model.unverifiedUserCount} user account${model.unverifiedUserCount === 1 ? ' remains' : 's remain'} unverified.` : model.userCount === 0 ? 'No user accounts are recorded.' : 'Every current user account has completed verification.',
                 path: '/users'
               },
               {

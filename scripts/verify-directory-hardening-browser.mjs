@@ -16,6 +16,126 @@ async function withPage(run) {
 const workspace = (id, name) => ({ id, name, memberCount: 0, lifecycleStatus: 'active', createdAt: '2026-01-01T00:00:00Z' });
 const reply = (route, body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
+test('grant recipient stays keyboard-selected with a stationary pointer over the scrolled menu', () => withPage(async (page, origin) => {
+  await page.route('**/admin-console-api/users?*', route => reply(route, { items: Array.from({ length: 125 }, (_, index) => ({
+    id: `pointer-user-${index + 1}`, displayName: `Person ${String(index + 1).padStart(3, '0')}`, email: `person${index + 1}@example.test`
+  })) }));
+  const grants = [];
+  await page.route('**/admin-console-api/workspaces/ws_atlas/members', route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    grants.push(route.request().postDataJSON());
+    return reply(route, {}, 201);
+  });
+  await page.goto(`${origin}/workspaces/ws_atlas`);
+  await page.getByRole('button', { name: 'Manage Access' }).click();
+  await page.getByRole('button', { name: 'Add workspace access' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Grant Access To Atlas Research', exact: true });
+  const user = dialog.getByRole('button', { name: 'User', exact: true });
+  await user.click();
+  const options = page.getByRole('option');
+  await options.last().waitFor({ state: 'visible' });
+  assert.equal(await options.count(), 125);
+  await options.first().hover();
+  await user.press('End');
+  await user.press('ArrowUp');
+  await user.press('ArrowDown');
+  await user.press('Enter');
+  assert.match(await user.innerText(), /Person 125 \(person125@example.test\)/);
+  await dialog.getByRole('button', { name: 'Workspace Role', exact: true }).click();
+  await page.getByRole('option', { name: 'Member', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Grant Access', exact: true }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  assert.deepEqual(grants, [{ userId: 'pointer-user-125', role: 'member', createUserIfMissing: false, reason: 'Platform admin granted Member access to Atlas Research' }]);
+}));
+
+for (const { width, theme } of [1440, 390].flatMap(width => ['light', 'dark'].map(theme => ({ width, theme })))) {
+  test(`workspace grant requires deliberate recipient and role at ${width}px ${theme}`, () => withPage(async (page, origin) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.emulateMedia({ colorScheme: theme });
+    const grants = [];
+    await page.route('**/admin-console-api/users?*', async route => {
+      await new Promise(resolve => setTimeout(resolve, 150));
+      return reply(route, { items: [
+        { id: 'alex-1', displayName: 'Alex Chen', email: 'alex1@example.test' },
+        { id: 'alex-2', displayName: 'Alex Chen', email: 'alex2@example.test' },
+        { id: 'usr_maya', displayName: 'Maya Chen', email: 'maya@atlas.example' }
+      ] });
+    });
+    await page.route('**/admin-console-api/workspaces/ws_atlas/members', route => {
+      if (route.request().method() !== 'POST') return route.continue();
+      grants.push(route.request().postDataJSON());
+      return reply(route, {}, 201);
+    });
+    await page.goto(`${origin}/workspaces/ws_atlas`);
+    assert.equal(/dark/.test(await page.locator('html').getAttribute('class') || ''), theme === 'dark');
+    await page.getByRole('button', { name: 'Manage Access' }).click();
+    await page.getByRole('button', { name: 'Add workspace access' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Grant Access To Atlas Research', exact: true });
+    const submit = dialog.getByRole('button', { name: 'Grant Access', exact: true });
+    assert.equal(await submit.isDisabled(), true);
+    assert.match(await dialog.getByRole('button', { name: 'User', exact: true }).innerText(), /Select user/);
+    assert.match(await dialog.getByRole('button', { name: 'Workspace Role', exact: true }).innerText(), /Select role/);
+    await dialog.locator('form').evaluate(form => form.requestSubmit());
+    assert.deepEqual(grants, []);
+    await dialog.getByRole('button', { name: 'User', exact: true }).click();
+    assert.equal(await page.getByRole('option', { name: /Maya Chen/ }).count(), 0);
+    await page.getByRole('option', { name: 'Alex Chen (alex2@example.test)', exact: true }).click();
+    assert.equal(await submit.isDisabled(), true);
+    await dialog.locator('form').evaluate(form => form.requestSubmit());
+    assert.deepEqual(grants, []);
+    await dialog.getByRole('button', { name: 'Workspace Role', exact: true }).focus();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    assert.equal(await submit.isDisabled(), false);
+    await page.screenshot({ path: `/tmp/acornops-phase03-pac-workspace-${width}-${theme}.png` });
+    await submit.click();
+    await dialog.waitFor({ state: 'hidden' });
+    assert.equal(grants.length, 1);
+    assert.equal(grants[0].userId, 'alex-2');
+    assert.equal(grants[0].createUserIfMissing, false);
+    assert.equal(grants[0].role, 'auditor');
+    assert.equal(grants[0].reason, 'Platform admin granted Auditor access to Atlas Research');
+  }));
+
+  test(`user grant requires deliberate workspace and role at ${width}px ${theme}`, () => withPage(async (page, origin) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.emulateMedia({ colorScheme: theme });
+    const grants = [];
+    await page.route('**/admin-console-api/workspaces?*', async route => {
+      await new Promise(resolve => setTimeout(resolve, 150));
+      return route.continue();
+    });
+    await page.route('**/admin-console-api/workspaces/*/members', route => {
+      if (route.request().method() !== 'POST') return route.continue();
+      grants.push({ path: new URL(route.request().url()).pathname, body: route.request().postDataJSON() });
+      return reply(route, {}, 201);
+    });
+    await page.goto(`${origin}/users/usr_maya`);
+    assert.equal(/dark/.test(await page.locator('html').getAttribute('class') || ''), theme === 'dark');
+    await page.getByRole('button', { name: 'Grant Access', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Grant Workspace Access To Maya Chen', exact: true });
+    const submit = dialog.getByRole('button', { name: 'Grant Access', exact: true });
+    assert.equal(await submit.isDisabled(), true);
+    await dialog.locator('form').evaluate(form => form.requestSubmit());
+    assert.deepEqual(grants, []);
+    await dialog.getByRole('button', { name: 'Workspace Role', exact: true }).click();
+    await page.getByRole('option', { name: 'Member', exact: true }).click();
+    assert.equal(await submit.isDisabled(), true);
+    await dialog.getByRole('button', { name: 'Workspace', exact: true }).click();
+    assert.equal(await page.getByRole('option', { name: 'Atlas Research', exact: true }).count(), 0);
+    await page.getByRole('option', { name: 'Cedar Systems', exact: true }).click();
+    assert.equal(await submit.isDisabled(), false);
+    assert.match(await dialog.innerText(), /maya@atlas.example/);
+    await page.screenshot({ path: `/tmp/acornops-phase03-pac-user-${width}-${theme}.png` });
+    await submit.click();
+    await dialog.waitFor({ state: 'hidden' });
+    assert.equal(grants.length, 1);
+    assert.equal(grants[0].path, '/admin-console-api/workspaces/ws_cedar/members');
+    assert.deepEqual(grants[0].body, { userId: 'usr_maya', role: 'member', createUserIfMissing: false, reason: 'Platform admin granted Member access to Cedar Systems' });
+  }));
+}
+
 test('workspace searches ignore stale responses and retain visible errors with retry', () => withPage(async (page, origin) => {
   let oldRequest;
   let fail = true;

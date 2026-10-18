@@ -25,7 +25,8 @@ import {
   type AppToast
 } from '@acornops/ui';
 import { adminApi, logoutAdmin, readableError } from './api';
-import { administratorInitials, resolveRoute, type RouteName } from './lib';
+import { administratorInitials, type RouteName } from './lib';
+import { useAdminNavigation } from './useAdminNavigation';
 import { OverviewPage } from './pages/OverviewPage';
 import { WorkspacesPage } from './pages/WorkspacesPage';
 import { UsersPage } from './pages/UsersPage';
@@ -74,7 +75,6 @@ const navSections: Array<{ title?: string; items: NavItem[] }> = [
 ];
 
 export function App() {
-  const [route, setRoute] = useState(() => resolveRoute(location.pathname));
   const [identity, setIdentity] = useState<any>(null);
   const [identityError, setIdentityError] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -98,21 +98,14 @@ export function App() {
     }
   });
 
-  const navigate = useCallback((path: string, options: { replace?: boolean } = {}) => {
-    if (options.replace) history.replaceState({}, '', path);
-    else if (`${location.pathname}${location.search}` !== path) history.pushState({}, '', path);
-    setRoute(resolveRoute(new URL(path, location.origin).pathname));
+  const { route, navigate } = useAdminNavigation((next, previous) => {
     setMobileOpen(false);
     setAccountOpen(false);
     setThemeOpen(false);
-    requestAnimationFrame(() => document.getElementById('main')?.focus({ preventScroll: true }));
-  }, []);
-
-  useEffect(() => {
-    const pop = () => setRoute(resolveRoute(location.pathname));
-    addEventListener('popstate', pop);
-    return () => removeEventListener('popstate', pop);
-  }, []);
+    // The overlay owns focus when a directory panel opens or closes, including
+    // history traversal. Only a different page needs the main-landmark reset.
+    if (next.name !== previous.name) requestAnimationFrame(() => document.getElementById('main')?.focus({ preventScroll: true }));
+  });
 
   useEffect(() => {
     applyTheme(theme);
@@ -184,7 +177,7 @@ export function App() {
   const notify = useCallback((input: string | { message: string; tone?: 'success' | 'danger' }) => {
     const value = typeof input === 'string' ? { message: input, tone: 'success' as const } : input;
     const id = crypto.randomUUID();
-    setToasts((current) => [...current, { id, ...value }]);
+    setToasts((current) => [...current, { id, message: value.message, tone: value.tone === 'danger' ? 'error' : value.tone }]);
     window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 3800);
   }, []);
 
@@ -200,7 +193,7 @@ export function App() {
 
   useEffect(() => {
     if (!identity || !hiddenRoutes.has(route.name)) return;
-    navigate(role === 'platform-admin-auditor' ? '/audit' : '/', { replace: true });
+    navigate(role === 'platform-admin-auditor' ? '/audit' : '/', { replace: true, forced: true });
   }, [hiddenRoutes, identity, navigate, role, route.name]);
 
   const pageProps = { navigate, notify, canMutate };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import { Pencil, Plus, RotateCcw, ShieldCheck, Trash2, Undo2 } from 'lucide-react';
 import { parse, stringify } from 'yaml';
 import {
@@ -288,6 +288,7 @@ function ProfileEditor({ profile, existingKeys, onClose, onSave }: {
   onClose: () => void;
   onSave: (profile: RbacProfile) => Promise<void>;
 }) {
+  const fieldId = useId();
   const [name, setName] = useState(profile?.name || '');
   const [key, setKey] = useState(profile?.key || '');
   const [keyTouched, setKeyTouched] = useState(false);
@@ -313,11 +314,11 @@ function ProfileEditor({ profile, existingKeys, onClose, onSave }: {
   };
   return <ActionDialog title={profile ? `Edit ${profile.name}` : 'Add RBAC Profile'} description="Define one user-facing profile and its exact Kubernetes custom-resource rules." submitLabel={profile ? 'Save profile' : 'Add profile'} pendingLabel="Saving…" pending={pending} error={error} onClose={onClose} onSubmit={submit}>
     <div className="grid gap-4 sm:grid-cols-2">
-      <div><FieldLabel>Name</FieldLabel><TextInput className="mt-2" value={name} maxLength={80} onChange={(event) => setName(event.target.value)} placeholder="CloudNativePG" /></div>
-      <div><FieldLabel>Key</FieldLabel><TextInput className="mono mt-2" value={key} maxLength={64} disabled={Boolean(profile)} onChange={(event) => { setKeyTouched(true); setKey(normalizeRbacProfileKey(event.target.value)); }} placeholder="cnpg" /></div>
+      <div><FieldLabel htmlFor={`${fieldId}-name`}>Name</FieldLabel><TextInput id={`${fieldId}-name`} className="mt-2" value={name} maxLength={80} onChange={(event) => setName(event.target.value)} placeholder="CloudNativePG" /></div>
+      <div><FieldLabel htmlFor={`${fieldId}-key`}>Key</FieldLabel><TextInput id={`${fieldId}-key`} className="mono mt-2" value={key} maxLength={64} disabled={Boolean(profile)} onChange={(event) => { setKeyTouched(true); setKey(normalizeRbacProfileKey(event.target.value)); }} placeholder="cnpg" /></div>
     </div>
-    <div><FieldLabel>Description</FieldLabel><TextInput className="mt-2" value={description} maxLength={240} onChange={(event) => setDescription(event.target.value)} placeholder="CloudNativePG database clusters" /></div>
-    <div><FieldLabel>Resource Rules YAML</FieldLabel><Textarea aria-label="Resource Rules YAML" spellCheck={false} rows={14} className="mono mt-2 text-xs" value={yaml} onChange={(event) => setYaml(event.target.value)} /><HelpText>Use exact API groups, versions, plural resources, kinds, scopes, and supported verbs. Wildcards and unknown fields are rejected.</HelpText></div>
+    <div><FieldLabel htmlFor={`${fieldId}-description`}>Description</FieldLabel><TextInput id={`${fieldId}-description`} className="mt-2" value={description} maxLength={240} onChange={(event) => setDescription(event.target.value)} placeholder="CloudNativePG database clusters" /></div>
+    <div><FieldLabel htmlFor={`${fieldId}-rules`}>Resource Rules YAML</FieldLabel><Textarea id={`${fieldId}-rules`} aria-describedby={`${fieldId}-rules-help`} spellCheck={false} rows={14} className="mono mt-2 text-xs" value={yaml} onChange={(event) => setYaml(event.target.value)} /><HelpText id={`${fieldId}-rules-help`}>Use exact API groups, versions, plural resources, kinds, scopes, and supported verbs. Wildcards and unknown fields are rejected.</HelpText></div>
   </ActionDialog>;
 }
 

@@ -25,9 +25,10 @@ import {
   Textarea,
   TextInput
 } from '@acornops/ui';
-import { adminApi, readableError } from '../api';
+import { ADMIN_AUTH_REDIRECT_EVENT, adminApi, readableError } from '../api';
 import type { PageProps } from '../app-types';
 import { ActionDialog } from '../components/ActionDialog';
+import { ADMIN_NAVIGATION_EVENT, type AdminNavigationRequest } from '../useAdminNavigation';
 import { importSkillFromGit } from '../lib/git-skill-import.js';
 import { isValidPublicHttpsUrl } from '../../lib/public-https-url.mjs';
 
@@ -81,7 +82,7 @@ export function buildManualSkillContent(
 export function workspaceDefaultSourceLabel(item: WorkspaceDefault) {
   if (item.source.type === 'https') return item.source.endpoint;
   if (item.source.type === 'manual') return 'Manual skill';
-  return `${item.source.repoUrl}${item.source.subpath ? ` / ${item.source.subpath}` : ''} @ ${item.source.commitSha.slice(0, 8)}`;
+  return `${item.source.repoUrl}${item.source.subpath ? ` / ${item.source.subpath}` : ''} @ ${item.source.commitSha}`;
 }
 
 export function WorkspaceDefaultsPage({ canMutate, notify, navigate }: PageProps) {
@@ -195,7 +196,7 @@ export function WorkspaceDefaultsPage({ canMutate, notify, navigate }: PageProps
               <DataTable caption={tab === 'mcp' ? 'MCP Server Defaults' : 'Skill Defaults'} className="min-w-[52rem] table-fixed">
                 <thead><tr><DataTableHeaderCell density="compact" className="w-[30%]">{tab === 'mcp' ? 'MCP Server' : 'Skill'}</DataTableHeaderCell><DataTableHeaderCell density="compact" className="w-[35%]">Available In</DataTableHeaderCell><DataTableHeaderCell density="compact" className="w-[23%]">Default</DataTableHeaderCell><DataTableHeaderCell density="compact" className="w-[12%] text-right">Actions</DataTableHeaderCell></tr></thead>
                 <tbody>{items.map((item) => <tr className="data-row" key={item.id}>
-                  <td data-primary="true" data-label={tab === 'mcp' ? 'MCP Server' : 'Skill'} className="px-5 py-4"><strong className="block text-sm text-ui-text">{item.name}</strong><span className="mono block break-all text-xs text-ui-text-muted">{workspaceDefaultSourceLabel(item)}</span></td>
+                  <td data-primary="true" data-label={tab === 'mcp' ? 'MCP Server' : 'Skill'} className="px-5 py-4"><strong className="block text-sm text-ui-text">{item.name}</strong><details className="mt-1 text-xs text-ui-text-muted"><summary className="cursor-pointer">Source details</summary><HelpText>Select to copy the full source value.</HelpText><Textarea readOnly aria-label={`Source for ${item.name}`} value={workspaceDefaultSourceLabel(item)} rows={3} className="mt-1 w-full text-xs" /></details></td>
                   <td data-label="Available In" className="px-5 py-4"><div className="flex flex-wrap gap-1">{canonicalDestinations(item.availableIn).length === allDestinations.length ? <StatusBadge>All</StatusBadge> : canonicalDestinations(item.availableIn).map((value) => <StatusBadge key={value}>{destinations[value]}</StatusBadge>)}</div></td>
                   <td data-label="Default" className="px-5 py-4"><div className="flex items-center gap-2"><Switch checked={item.enabled !== false} label={`${item.enabled === false ? 'Turn on' : 'Turn off'} default for ${item.name}`} disabled={!canMutate || pendingDefaultId === item.id} onCheckedChange={(enabled) => void setDefaultEnabled(item, enabled)} /><span className="text-xs font-semibold text-ui-text-muted">{item.enabled === false ? 'Off' : 'On'}</span></div></td>
                   <td data-label="Actions" className="px-5 py-4"><div className="responsive-actions flex justify-end"><OverflowActionMenu label={`Actions for ${item.name}`} disabled={!canMutate}>{(close) => <><MenuItem onClick={() => { close(); setSelected(item); setDialog('edit'); }}><Pencil className="h-4 w-4 shrink-0 text-ui-text-muted" aria-hidden="true" />Edit Availability</MenuItem><MenuItem destructive onClick={() => { close(); setSelected(item); setDialog('delete'); }}><Trash2 className="h-4 w-4 shrink-0" aria-hidden="true" />Delete</MenuItem></>}</OverflowActionMenu></div></td>
@@ -285,7 +286,7 @@ function ImportSkillDialog({ onClose, onDone }: any) {
     await adminApi('/workspace-defaults', { method: 'POST', body: { kind: 'skill', availableIn, source: imported.source, files: imported.files, reason: 'Imported platform skill default' } });
   }} onClose={onClose} onDone={onDone}>
     <div><FieldLabel htmlFor="skill-provider">Provider</FieldLabel><Select id="skill-provider" ariaLabel="Provider" value={provider} onChange={setProvider} className="mt-2" options={[{ value: 'github', label: 'GitHub' }, { value: 'gitlab', label: 'GitLab' }]} /></div>
-    <div><FieldLabel htmlFor="skill-repository">Repository URL</FieldLabel><TextInput id="skill-repository" type="url" value={repoUrl} onChange={(event) => setRepoUrl(event.target.value)} placeholder="https://github.com/openai/skills/tree/main/skills/.curated/example" className="mt-2" /></div>
+    <div><FieldLabel htmlFor="skill-repository">Repository URL</FieldLabel><TextInput id="skill-repository" type="url" value={repoUrl} onChange={(event) => setRepoUrl(event.target.value)} placeholder="https://github.com/openai/skills/tree/main/skills/.curated/example" aria-describedby="skill-repository-help" className="mt-2" /><HelpText id="skill-repository-help">Only public github.com and gitlab.com repositories are supported. Use a repository, folder, or Markdown file URL. Private repositories and custom hosts are not supported.</HelpText></div>
     <div className="grid gap-4 sm:grid-cols-2"><div><FieldLabel htmlFor="skill-ref">Ref</FieldLabel><TextInput id="skill-ref" value={ref} onChange={(event) => setRef(event.target.value)} placeholder="Defaults to the repository branch" className="mt-2" /></div><div><FieldLabel htmlFor="skill-subpath">Subpath</FieldLabel><TextInput id="skill-subpath" value={subpath} onChange={(event) => setSubpath(event.target.value)} placeholder="skills/example" className="mt-2" /></div></div>
     <InlineAlert tone="neutral"><strong className="text-ui-text">Imported snapshot.</strong> The selected ref is resolved to an immutable commit and only Markdown skill files are imported.</InlineAlert>
     <DestinationChoices selected={availableIn} onChange={setAvailableIn} />
@@ -300,6 +301,30 @@ function CreateSkillDialog({ onClose, onDone }: any) {
   const [availableIn, setAvailableIn] = useState(allDestinations);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [discardAction, setDiscardAction] = useState<(() => void) | null>(null);
+  const dirty = name !== '' || skillContent !== '' || canonicalDestinations(availableIn).length !== allDestinations.length;
+  const requestClose = () => {
+    if (pending) return;
+    if (dirty) setDiscardAction(() => onClose);
+    else onClose();
+  };
+  useEffect(() => {
+    const leave = (event: Event) => {
+      if (!dirty && !pending) return;
+      event.preventDefault();
+      if (!pending) setDiscardAction(() => () => { onClose(); (event as AdminNavigationRequest).detail.proceed(); });
+    };
+    const unload = (event: BeforeUnloadEvent) => { if (dirty || pending) event.preventDefault(); };
+    const authorize = () => window.removeEventListener('beforeunload', unload);
+    window.addEventListener(ADMIN_NAVIGATION_EVENT, leave);
+    window.addEventListener('beforeunload', unload);
+    window.addEventListener(ADMIN_AUTH_REDIRECT_EVENT, authorize);
+    return () => {
+      window.removeEventListener(ADMIN_NAVIGATION_EVENT, leave);
+      window.removeEventListener('beforeunload', unload);
+      window.removeEventListener(ADMIN_AUTH_REDIRECT_EVENT, authorize);
+    };
+  }, [dirty, pending, onClose]);
   const normalizedName = normalizeSkillName(name);
   const steps = [
     { id: 'name', label: 'Name' },
@@ -308,7 +333,7 @@ function CreateSkillDialog({ onClose, onDone }: any) {
   ];
   const nextFromName = () => {
     if (!normalizedName) return;
-    setSkillContent(buildManualSkillContent(name));
+    if (!skillContent) setSkillContent(buildManualSkillContent(name));
     setError('');
     setStep('files');
   };
@@ -334,11 +359,11 @@ function CreateSkillDialog({ onClose, onDone }: any) {
     }
   };
 
-  return <DialogFrame
+  return <><DialogFrame
     unframed
     titleId="create-platform-skill-title"
     closeDisabled={pending}
-    onClose={onClose}
+    onClose={requestClose}
     className={`flex max-h-[88vh] w-full flex-col overflow-hidden rounded-lg border border-ui-border bg-ui-surface shadow-2xl ${
       step === 'files' ? 'max-w-6xl' : 'max-w-xl'
     }`}
@@ -348,7 +373,7 @@ function CreateSkillDialog({ onClose, onDone }: any) {
         <h3 id="create-platform-skill-title" className="type-panel-title">Create Skill</h3>
         <ModalStepIndicator steps={steps} currentStepId={step} compactOnMobile className="mt-4" />
       </div>
-      <CloseButton onClick={onClose} disabled={pending} aria-label="Close skill editor" />
+      <CloseButton onClick={requestClose} disabled={pending} aria-label="Close skill editor" />
     </div>
 
     <div className="min-h-0 flex-1 overflow-y-auto p-6 custom-scrollbar">
@@ -412,7 +437,7 @@ function CreateSkillDialog({ onClose, onDone }: any) {
       <div className="flex justify-end gap-3">
         {step === 'name' ? (
           <>
-            <Button variant="secondary" size="sm" onClick={onClose} disabled={pending}>Cancel</Button>
+            <Button variant="secondary" size="sm" onClick={requestClose} disabled={pending}>Cancel</Button>
             <Button variant="primary" size="sm" onClick={nextFromName} disabled={!normalizedName || pending}>Next</Button>
           </>
         ) : step === 'files' ? (
@@ -430,7 +455,12 @@ function CreateSkillDialog({ onClose, onDone }: any) {
         )}
       </div>
     </div>
-  </DialogFrame>;
+  </DialogFrame>
+  {discardAction && <DialogFrame title="Discard Unsaved Skill Changes?" titleId="discard-platform-skill-title" description="Your skill name, files, and availability changes have not been saved." onClose={() => setDiscardAction(null)} footer={<>
+    <Button variant="secondary" onClick={() => setDiscardAction(null)}>Keep editing</Button>
+    <Button variant="danger" onClick={discardAction}>Discard</Button>
+  </>}><p className="text-sm text-ui-text-muted">Discarding only clears this local draft. No saved skill is deleted.</p></DialogFrame>}
+  </>;
 }
 
 function AvailabilityDialog({ item, onClose, onDone }: any) {

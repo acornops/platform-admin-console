@@ -312,19 +312,22 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
                                     disabled={isSoleOwner || Boolean(rolePendingUserId)}
                                     className="col-span-2 min-w-0 sm:col-span-1"
                                     ariaLabel={`Role for ${member.displayName || member.email}`}
+                                    ariaDescribedBy={isSoleOwner ? `workspace-owner-help-${member.userId}` : undefined}
                                     options={(config.roleTemplateKeys || []).map((role: string) => ({ value: role, label: titleCase(role) }))}
                                   />
                                   <Button
                                     size="sm"
                                     className="min-w-0 sm:min-w-[6.5rem]"
                                     disabled={isSoleOwner || !roleChanged || Boolean(rolePendingUserId)}
+                                    aria-describedby={isSoleOwner ? `workspace-owner-help-${member.userId}` : undefined}
                                     onClick={() => void updateMemberRole(member, nextRole)}
                                   >
                                     {rolePendingUserId === member.userId ? 'Updating…' : 'Update Role'}
                                   </Button>
-                                  <Button variant="dangerSoft" size="icon" className="h-11 w-11 shrink-0 hover:border-control-boundary hover:bg-control-danger hover:text-control-danger-fg sm:h-11 sm:w-11" aria-label={`Revoke workspace access from ${member.displayName || member.email}`} disabled={isSoleOwner || Boolean(rolePendingUserId)} onClick={() => { setSelectedMember({ ...member, isSoleOwner }); setDialog('revoke'); }}>
+                                  <Button variant="dangerSoft" size="icon" className="h-11 w-11 shrink-0 hover:border-control-boundary hover:bg-control-danger hover:text-control-danger-fg sm:h-11 sm:w-11" aria-label={`Revoke workspace access from ${member.displayName || member.email}`} aria-describedby={isSoleOwner ? `workspace-owner-help-${member.userId}` : undefined} disabled={isSoleOwner || Boolean(rolePendingUserId)} onClick={() => { setSelectedMember({ ...member, isSoleOwner }); setDialog('revoke'); }}>
                                     <UserMinus className="h-4 w-4" />
                                   </Button>
+                                  {isSoleOwner && <p id={`workspace-owner-help-${member.userId}`} className="text-xs text-ui-text-muted sm:col-span-3">The workspace must keep at least one owner. Add another owner before changing or removing this access.</p>}
                                 </div>
                               ) : <StatusBadge>{titleCase(member.role)}</StatusBadge>}
                             </td>
@@ -365,11 +368,18 @@ function DetailItem({ term, children }: { term: string; children: ReactNode }) {
 
 function GrantDialog({ workspace, members, users, roles, onClose, onDone }: any) {
   const available = users.filter((user: any) => !members.some((member: any) => member.userId === user.id)).sort((a: any, b: any) => String(a.displayName || a.email).localeCompare(String(b.displayName || b.email)));
-  const [userId, setUserId] = useState(available[0]?.id || '');
-  const [role, setRole] = useState(roles.includes('member') ? 'member' : roles[0] || '');
-  return <MutationDialog title={`Grant Access To ${workspace.name}`} description="Select an existing user and workspace role." submitLabel="Grant Access" onClose={onClose} onDone={onDone} request={() => adminApi(`/workspaces/${encodeURIComponent(workspace.id)}/members`, { method: 'POST', body: { userId, role, createUserIfMissing: false, reason: `Platform admin granted ${titleCase(role)} access to ${workspace.name}` } })} submitDisabled={!userId || !role}>
-    <div><FieldLabel htmlFor="grant-user">User</FieldLabel><Select id="grant-user" ariaLabel="User" value={userId} onChange={setUserId} options={available.map((user: any) => ({ value: user.id, label: user.displayName || user.email }))} /></div>
-    <div><FieldLabel htmlFor="grant-workspace-role">Workspace Role</FieldLabel><Select id="grant-workspace-role" ariaLabel="Workspace Role" value={role} onChange={setRole} options={roles.map((value: string) => ({ value, label: titleCase(value) }))} /></div>
+  const [userId, setUserId] = useState('');
+  const [role, setRole] = useState('');
+  const userIsAvailable = available.some((user: any) => user.id === userId);
+  const roleIsAvailable = roles.includes(role);
+  useEffect(() => {
+    if (userId && !userIsAvailable) setUserId('');
+    if (role && !roleIsAvailable) setRole('');
+  }, [userId, userIsAvailable, role, roleIsAvailable]);
+  return <MutationDialog title={`Grant Access To ${workspace.name}`} description="Select an existing user and workspace role." submitLabel="Grant Access" onClose={onClose} onDone={onDone} request={() => adminApi(`/workspaces/${encodeURIComponent(workspace.id)}/members`, { method: 'POST', body: { userId, role, createUserIfMissing: false, reason: `Platform admin granted ${titleCase(role)} access to ${workspace.name}` } })} submitDisabled={!userIsAvailable || !roleIsAvailable}>
+    <div><FieldLabel htmlFor="grant-user">User</FieldLabel><Select id="grant-user" ariaLabel="User" value={userId} onChange={setUserId} placeholder="Select user" options={available.map((user: any) => ({ value: user.id, label: user.displayName ? `${user.displayName} (${user.email})` : user.email }))} /></div>
+    <div><FieldLabel htmlFor="grant-workspace-role">Workspace Role</FieldLabel><Select id="grant-workspace-role" ariaLabel="Workspace Role" value={role} onChange={setRole} placeholder="Select role" options={roles.map((value: string) => ({ value, label: titleCase(value) }))} /></div>
+    <HelpText>{!available.length ? 'No eligible users are available.' : !roles.length ? 'No workspace roles are available.' : 'Choose a user and role to grant access to this workspace.'}</HelpText>
   </MutationDialog>;
 }
 
@@ -380,7 +390,7 @@ function RevokeDialog({ workspace, member, onClose, onDone }: any) {
       <span className="mt-1 block">The user keeps their AcornOps account and access to other workspaces.</span>
     </InlineAlert>
     <dl className="grid gap-4 rounded-lg border border-ui-border bg-ui-bg p-4 sm:grid-cols-2">
-      <DetailItem term="User">{member.displayName || member.email}</DetailItem>
+      <DetailItem term="User">{member.displayName ? `${member.displayName} (${member.email})` : member.email}</DetailItem>
       <DetailItem term="Workspace">{workspace.name}</DetailItem>
     </dl>
   </MutationDialog>;
@@ -390,7 +400,9 @@ function MutationDialog({ title, description, submitLabel, danger, submitDisable
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); setPending(true); setError('');
+    event.preventDefault();
+    if (pending || submitDisabled) return;
+    setPending(true); setError('');
     try { await request(); onDone(); } catch (reason) { setError(readableError(reason)); setPending(false); }
   };
   return <ActionDialog title={title} description={description} submitLabel={submitLabel} danger={danger} submitDisabled={submitDisabled} pending={pending} error={error} onClose={onClose} onSubmit={submit}>{children}</ActionDialog>;

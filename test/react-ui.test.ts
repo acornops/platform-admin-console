@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import {
   getBoundaryEnabledOptionIndex,
   getNextEnabledOptionIndex,
@@ -16,23 +18,93 @@ import {
   rbacProfileRows
 } from '../src/components/KubernetesRbacAdditions';
 import { buildOverviewModel } from '../src/pages/OverviewPage';
+import { WorkspacePolicyDialog } from '../src/components/WorkspacePolicy';
 import {
   aiPolicyMutationValue,
   isAiPolicyMutationValid,
   isHelpLinksMutationValid,
   settingValuesMatch
 } from '../src/pages/SettingsPage';
-import { buildManualSkillContent, canonicalDestinations, normalizeSkillName } from '../src/pages/WorkspaceDefaultsPage';
+import { buildManualSkillContent, canonicalDestinations, normalizeSkillName, workspaceDefaultSourceLabel } from '../src/pages/WorkspaceDefaultsPage';
 import {
   auditActorName,
   auditAffectedParts,
   auditAffectedText,
   auditEventText,
   auditPresetRange,
+  auditRangeError,
   buildAuditQuery,
   humanizeAuditAction,
   rawAuditKeyValues
 } from '../src/pages/AuditPage';
+
+test('plan impact preview distinguishes zero usage, unlimited and unavailable limits while preserving overrides', () => {
+  const policy = {
+    plan: { key: 'team', name: 'Team' }, policyVersion: 7, holds: [],
+    effectiveLimits: { quotas: { members: 100, kubernetesClusters: 30, virtualMachines: null }, executionLimits: {} },
+    quotaOverrides: { members: 100, kubernetesClusters: null },
+    usage: { members: 53, kubernetesClusters: 0, virtualMachines: 0, execution: {} }
+  };
+  const html = renderToStaticMarkup(createElement(WorkspacePolicyDialog, {
+    workspace: { id: 'ws-test', name: 'Research', plan: policy.plan }, policy,
+    plans: [{ ...policy.plan, limits: { members: 60, kubernetesClusters: 0, virtualMachines: null }, executionLimits: {} }],
+    action: 'plan', onClose() {}, onDone() {}
+  }));
+  assert.match(html, /aria-label="Plan impact preview"/);
+  assert.match(html, /Current plan selected/);
+  assert.match(html, /53/);
+  assert.match(html, /100/);
+  assert.match(html, /Default: 60/);
+  assert.match(html, /Override kept/);
+  assert.match(html, /Unlimited/);
+  assert.match(html, /Unavailable/);
+  assert.match(html, /Execution Pools/);
+  assert.match(html, /No plan change/);
+});
+
+test('plan impact preview cannot submit when the selected plan is absent from the catalog', () => {
+  const policy = { plan: { key: 'team', name: 'Team' }, policyVersion: 7, holds: [], effectiveLimits: { quotas: {}, executionLimits: {} }, quotaOverrides: {}, usage: { execution: {} } };
+  const html = renderToStaticMarkup(createElement(WorkspacePolicyDialog, {
+    workspace: { id: 'ws-test', name: 'Research', plan: policy.plan }, policy,
+    plans: [], action: 'plan', onClose() {}, onDone() {}
+  }));
+  assert.match(html, /Selected plan limits are unavailable/);
+  assert.match(html, /disabled=""[^>]*>Update Plan/);
+});
+
+test('audit custom ranges use the displayed local zone and reject invalid or reversed bounds', () => {
+  const previousZone = process.env.TZ;
+  try {
+    for (const [zone, expected] of [['Asia/Singapore', '2026-07-01T01:00:00.000Z'], ['America/New_York', '2026-07-01T13:00:00.000Z']]) {
+      process.env.TZ = zone;
+      assert.equal(Intl.DateTimeFormat().resolvedOptions().timeZone, zone);
+      const query = buildAuditQuery({ adminActorSubject: '  oidc-subject-123  ' }, '2026-07-01T09:00', '2026-07-01T10:00');
+      assert.equal(query.get('from'), expected);
+      assert.equal(query.get('adminActorSubject'), 'oidc-subject-123');
+      assert.equal(query.has('actorName'), false);
+      assert.equal(query.has('adminActorEmail'), false);
+    }
+    assert.equal(auditRangeError('invalid', ''), 'Enter valid date and time values.');
+    assert.equal(auditRangeError('2026-07-02T00:00', '2026-07-01T00:00'), 'From must not be later than To.');
+    assert.equal(auditRangeError('2026-07-01T00:00', '2026-07-01T00:00'), '');
+    assert.throws(() => buildAuditQuery({}, 'invalid', ''), /valid date/);
+    assert.throws(() => buildAuditQuery({}, '2026-07-02T00:00', '2026-07-01T00:00'), /later than/);
+  } finally {
+    if (previousZone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousZone;
+  }
+});
+
+test('audit filter guidance distinguishes identifiers, time bounds and unapplied drafts', async () => {
+  const source = await readFile(new URL('../src/pages/AuditPage.tsx', import.meta.url), 'utf8');
+  assert.match(source, /Admin actor subject/);
+  assert.match(source, /Exact OIDC subject identifier, not a name or email search/);
+  assert.match(source, /aria-describedby="audit-actor-help"/);
+  assert.match(source, /From and To are inclusive/);
+  assert.match(source, /resolvedOptions\(\)\.timeZone/);
+  assert.match(source, /Changes not applied/);
+  assert.match(source, /disabled=\{Boolean\(rangeError\)\}/);
+});
 
 test('resolves every platform route without a client routing dependency', () => {
   assert.deepEqual(resolveRoute('/'), { name: 'overview', path: '/' });
@@ -42,6 +114,19 @@ test('resolves every platform route without a client routing dependency', () => 
   assert.equal(resolveRoute('/settings/kubernetes').name, 'settings-kubernetes');
   assert.equal(resolveRoute('/workspace-defaults').name, 'workspace-defaults');
   assert.equal(resolveRoute('/audit').name, 'audit');
+});
+
+test('copy retains full source evidence, OIDC casing and visible sole-owner guidance', async () => {
+  const [workspaces, users, defaults, overview] = await Promise.all(['WorkspacesPage', 'UsersPage', 'WorkspaceDefaultsPage', 'OverviewPage'].map(name => readFile(new URL(`../src/pages/${name}.tsx`, import.meta.url), 'utf8')));
+  assert.match(workspaces, /The workspace must keep at least one owner/);
+  assert.match(workspaces, /aria-describedby=\{isSoleOwner/);
+  assert.match(workspaces, /ownerCount === 1/);
+  assert.match(users, /method.type === 'oidc' \? 'OIDC'/);
+  assert.match(defaults, /Only public github.com and gitlab.com/);
+  assert.match(defaults, /Select to copy/);
+  assert.match(overview, /unverifiedUserCount === 1/);
+  const commitSha = 'abcdef0123456789abcdef0123456789abcdef01';
+  assert.equal(workspaceDefaultSourceLabel({ id: 'default-1', name: 'Skill', kind: 'skill', description: '', enabled: true, availableIn: ['agents'], source: { type: 'git', repoUrl: 'https://github.com/example/long-name', subpath: 'skills/triage', commitSha } }), `https://github.com/example/long-name / skills/triage @ ${commitSha}`);
 });
 
 test('builds stable administrator initials', () => {
@@ -352,7 +437,13 @@ test('capability defaults reuse the management underline tabs without adding Too
   assert.match(modalSteps, /export const ModalStepIndicator/);
   assert.match(modalSteps, /complete \? <CheckCircle2/);
   assert.match(page, /The next step creates a starter SKILL\.md\. You can edit the YAML header and body before saving\./);
-  assert.match(page, /setSkillContent\(buildManualSkillContent\(name\)\)/);
+  assert.match(page, /if \(!skillContent\) setSkillContent\(buildManualSkillContent\(name\)\)/);
+  // Actual dismissal, retained values, pending/error and history behavior run in
+  // scripts/verify-ui-polish-browser.mjs; keep this existing structural gate aligned.
+  assert.match(page, /name !== '' \|\| skillContent !== ''/);
+  assert.match(page, /onClose=\{requestClose\}/);
+  assert.match(page, />Keep editing<\/Button>/);
+  assert.match(page, />Discard<\/Button>/);
   assert.match(page, /aria-label="SKILL\.md content"/);
   assert.match(page, /Choose where this skill will be available in new workspaces\./);
   assert.match(page, /step === 'name'/);

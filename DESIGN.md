@@ -99,9 +99,64 @@ A platform administrator works from a support or security request in a bright of
 
 ## Accessibility
 
+### Local skill drafts and truthful feedback
+
+Manual skill authoring protects its name, fixed `SKILL.md` file contents, and
+availability on X, Cancel, Escape, backdrop, and navigation. Keep editing retains
+the exact draft; Discard clears only that local draft, never a saved definition.
+Going back through the wizard does not regenerate edited file content. Pristine
+close and successful submit need no discard prompt. Pending submissions cannot
+dismiss the draft, and failed submissions keep authored content. There is no
+browser persistence, autosave, or new mutation contract.
+Escape in an open Select closes only that menu; it does not also dismiss the
+parent skill dialog. The next Escape reaches the normal parent close policy.
+
+Same-document navigation uses an app-local cancelable event and indexed history
+entries, preserving existing history state. Cancellation restores the current
+entry without pushing duplicates, including Forward; full-document exits use
+the native unload warning. Authentication/reauthentication and mandatory role
+redirects bypass the draft guard. Entries present when the app boots are indexed
+in place; prior cross-document entries remain the browser's unload boundary.
+
+Shared toasts have explicit success/error/warning/info presentation and a neutral
+default. PAC's existing string notification API deliberately represents completed
+successes; its existing danger inputs map to shared error tone. Errors use an
+assertive announcement, and ordinary informational feedback remains polite.
+
+### Deliberate new access
+
+New grants prefill only their route-owned context: workspace in the workspace
+panel, user in the user panel. The other identity/workspace and the server role
+start empty; catalog arrival or removal never chooses the first replacement.
+Submit remains disabled until both selections are eligible, with a submit-time
+guard as well. Name plus email disambiguates user options and grant/revoke
+context. Existing role edits keep their assigned role. REQ-USR-009/REQ-WSP-003
+are preserved; EXC-002/010/018 and the fixed mutation contract are unchanged.
+
 Target WCAG 2.2 AA. Use semantic landmarks, native buttons and dialogs, labelled fields, live status messages, non-color status text, and logical focus order.
 
 ## Contract Alignment
+
+### Plan impact preview
+
+Change Plan keeps the existing selector, versioned submission and divided
+dialog. A compact resource comparison shows recorded usage, current effective
+limits and selected limits from the already-loaded policy and plan catalog.
+The five independent execution pools use the same comparison in a disclosure.
+Selection is read-only and causes no additional requests. Numeric resource
+overrides remain in place and show the selected plan default separately;
+the producer treats a null override as use-the-plan-default, not unlimited.
+A null limit is Unlimited, zero remains zero, and missing values are
+Unavailable rather than guessed effective limits or usage. Overages use text
+as well as semantic color and remain advisory snapshots, not client authority.
+
+The first submission still uses reject. Only the producer's usage conflict
+reveals the unchecked retain-existing confirmation; a new plan selection or
+policy version clears it. A policy-version conflict invalidates the old
+intent. Failed refresh blocks submission until Refresh Policy succeeds, then
+the operator reviews the refreshed comparison and explicitly resubmits.
+No quota editor, reason/ticket field, route, payload field, or contract deviation
+is introduced. Preserves REQ-WSP-002 and EXC-015/017.
 
 The producer source of truth is the control-plane `/admin/v1` implementation, its Zod request schemas, OpenAPI sources, and `docs/contracts/manifest.json`. The consumer mirror is `platform-admin-console/docs/contracts/manifest.json`. Runtime routes, required scopes, allowed query names, request fields, mock fixtures, response projections, and frontend field use are machine-checked together.
 

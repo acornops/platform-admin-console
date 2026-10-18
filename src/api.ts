@@ -16,6 +16,7 @@ export class AdminApiError extends Error {
 }
 
 let csrfToken = '';
+export const ADMIN_AUTH_REDIRECT_EVENT = 'admin-console:authorization-redirect';
 
 export function adminLoginPath(status: number, code: string | undefined, returnTo: string) {
   const encodedReturnTo = encodeURIComponent(returnTo);
@@ -55,6 +56,7 @@ export async function adminApi<T = any>(
     try { payload = await response.json() as ApiErrorPayload; } catch { /* non-JSON upstream error */ }
     const loginPath = adminLoginPath(response.status, payload.error?.code, `${location.pathname}${location.search}`);
     if (loginPath) {
+      globalThis.dispatchEvent?.(new Event(ADMIN_AUTH_REDIRECT_EVENT));
       location.assign(loginPath);
       throw new AdminApiError(
         payload.error?.message || 'Administrator sign-in is required.',

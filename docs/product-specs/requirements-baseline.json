@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastReviewed": "2026-09-06",
+  "lastReviewed": "2026-10-19",
   "authority": "docs/product-specs/current-requirements.md",
   "expectedRuntime": {
     "adminRouteCount": 27,
@@ -16,9 +16,10 @@
   "required": [
     {
       "id": "REQ-DEF-001",
-      "summary": "Capabilities seeds new workspaces once with enabled MCP servers and manual or imported skills using separate management-aligned skill actions, a Name → Edit files → Availability creation wizard, shared destination selection, fixed columns, public-Git pinned imports, fixed routes, and no credentials or built-in tools.",
+      "summary": "Capabilities protects local manual skill drafts with Keep editing/Discard on dismissal and navigation without persistence or blocking required authorization, and seeds new workspaces once with enabled MCP servers and manual or imported skills using separate management-aligned skill actions, a Name → Edit files → Availability creation wizard, shared destination selection, fixed columns, public-Git pinned imports, fixed routes, and no credentials or built-in tools.",
       "evidence": [
         { "file": "src/pages/WorkspaceDefaultsPage.tsx", "contains": ["Capabilities", "MCP servers", "Add MCP Server", "Import Skill", "Create Skill", "Import skill", "Create skill", "source: { type: 'manual' }", "buildManualSkillContent", "Manual skill", "{ id: 'name', label: 'Name' }", "{ id: 'files', label: 'Edit files' }", "{ id: 'availability', label: 'Availability' }", "ModalStepIndicator", "The next step creates a starter SKILL.md", "aria-label=\"SKILL.md content\"", "Choose where this skill will be available in new workspaces.", "Available In", "Default", "toolbarFullWidth", "sm:grid-cols-[minmax(0,1fr)_12rem_auto]", "min-w-[52rem] table-fixed", "w-[30%]", "w-[35%]", "w-[23%]", "w-[12%] text-right", "description=\"New workspaces are created with these defaults, while existing workspaces remain unchanged.\"", "Workspace users explicitly enable the MCP servers they want to use", "Each enabled server becomes workspace-owned", "Workspace users explicitly enable the skills they want to use", "Each enabled skill becomes workspace-owned", "hasSelection ? 'Clear' : 'Select all'", "destination-choice", "data-selected={isSelected}", "Edit Availability", "Choose where ${item.name} will appear in.", "Switch", "OverflowActionMenu", "Delete", "Authentication stays in each workspace", "canonicalDestinations", "kind: 'mcp_server'", "kind: 'skill'", "virtual_machines"], "excludes": ["<span className=\"block\">New workspaces are created with these defaults", ">Select all</button><button", "will appear in workspaces created after this change", "authHeader", "credentialValue", "secretValue", "built-in tools"] },
+        { "file": "scripts/verify-ui-polish-browser.mjs", "contains": ["Keep editing retains it", "file content and destinations survive", "required authorization redirect", "repeated Back and Forward cancellation"] },
         { "file": "packages/ui/src/ModalStepIndicator.tsx", "contains": ["ModalStepIndicator", "currentStepId", "CheckCircle2", "Go to ${step.label}"] },
         { "file": "src/styles.css", "contains": [".audit-time-filter[aria-pressed=\"true\"]", ".destination-choice[data-selected=\"true\"]", "border-color: rgb(var(--admin-clay));", "background: rgb(var(--admin-clay-soft));", "color: rgb(var(--admin-clay-strong));", "box-shadow: none;"] },
         { "file": "src/lib/git-skill-import.js", "contains": ["github.com", "gitlab.com", "commitSha", "credentials: \"omit\"", "redirect: \"error\""], "excludes": ["credentials: \"include\""] }
@@ -91,6 +92,7 @@
         { "file": "package.json", "contains": ["\"@acornops/ui\": \"workspace:*\"", "\"react\": \"^19.2.4\"", "\"vite\": \"^6.4.3\"", "\"tailwindcss\": \"^3.4.17\""] },
         { "file": "src/App.tsx", "contains": ["from '@acornops/ui'", "from 'lucide-react'", "Platform Admin", "Resource Management", "Platform Settings", "Governance", "icon: PanelsTopLeft", "Theme", "Logout"], "excludes": ["Account Settings", "Tenant data is out of scope", "createLucideIcon('Workspace"] },
         { "file": "packages/ui/src/index.ts", "contains": ["export * from './Button'", "export * from './RightSidePanel'", "export * from './ToastViewport'", "export * from './Select'"] },
+        { "file": "packages/ui/src/ToastViewport.tsx", "contains": ["tone?", "toast.tone || 'info'", "CircleAlert", "TriangleAlert", "assertive"] },
         { "file": "packages/ui/src/PageComposition.tsx", "contains": ["max-w-[112rem]", "type-route-title", "type-section-title", "--ao-header-content-gap"] },
         { "file": "packages/ui/src/DataTable.tsx", "contains": ["responsive-table-frame"] },
         { "file": "packages/ui/src/Select.tsx", "contains": ["export const Select", "openAbove"] },
@@ -175,9 +177,10 @@
     },
     {
       "id": "REQ-USR-009",
-      "summary": "The user panel grants an existing user access to an available workspace with a contract-provided role, without creating an account.",
+      "summary": "The user panel grants an existing user access only after deliberate eligible-workspace and contract-provided-role choices, without creating an account; name and email identify the fixed recipient.",
       "evidence": [
-        { "file": "src/pages/UsersPage.tsx", "contains": ["Grant Workspace Access To", "config.roleTemplateKeys", "createUserIfMissing: false", "method: 'POST'"] }
+        { "file": "src/pages/UsersPage.tsx", "contains": ["Grant Workspace Access To", "config.roleTemplateKeys", "createUserIfMissing: false", "method: 'POST'", "placeholder=\"Select workspace\"", "placeholder=\"Select role\"", "submitDisabled={!workspace || !roleIsAvailable}"] },
+        { "file": "scripts/verify-directory-hardening-browser.mjs", "contains": ["user grant requires deliberate workspace and role", "assert.deepEqual(grants, [])"] }
       ]
     },
     {
@@ -198,7 +201,7 @@
     },
     {
       "id": "REQ-WSP-002",
-      "summary": "Workspace summary displays read-only effective resource limits, explicit overrides and five independent execution pool usage counts.",
+      "summary": "Workspace summary displays read-only effective resource limits, explicit overrides and five independent execution pool usage counts. Change Plan previews current usage/current/selected limits from existing reads, preserves numeric overrides, distinguishes zero/unlimited/unavailable, and blocks stale-version submission until refresh without choosing retain-existing automatically.",
       "evidence": [
         {
           "file": "src/pages/WorkspacesPage.tsx",
@@ -252,16 +255,29 @@
             "outstandingRuns",
             "autoTriage",
             "insights",
-            "read-only"
+            "read-only",
+            "Plan impact preview",
+            "Override kept",
+            "Refresh Policy",
+            "if (pending || submitDisabled) return"
           ]
+        },
+        {
+          "file": "scripts/verify-hosted-policy-browser.mjs",
+          "contains": ["plan preview compares lower/higher limits without reads or writes", "stale policy blocks retries until refresh", "failed ${failedRead} read cannot expose a plan submission"]
+        },
+        {
+          "file": "test/react-ui.test.ts",
+          "contains": ["plan impact preview distinguishes zero usage, unlimited and unavailable limits while preserving overrides", "plan impact preview cannot submit when the selected plan is absent from the catalog"]
         }
       ]
     },
     {
       "id": "REQ-WSP-003",
-      "summary": "Workspace Access shows a member-count badge, the accepted description, and explicit responsive medium-weight User, Email, and Role columns without an outer bottom divider; it switches to workspace-scoped management with staged roles, direct Update Role, neutral sentence-case revocation confirmation, and the last-owner invariant.",
+      "summary": "Workspace Access preserves responsive member columns, staged roles, direct Update Role, neutral revocation confirmation and last-owner safeguards. New grants require deliberate eligible-user and contract-role choices with name and email, while the workspace alone is fixed.",
       "evidence": [
         { "file": "src/pages/WorkspacesPage.tsx", "contains": ["Workspace Access", "Members and roles currently assigned to this workspace.", "member{members.length === 1 ? '' : 's'}", "w-[25%] font-medium", "w-[29%] font-medium", "w-[46%] font-medium", "-mx-4 border-t border-ui-border sm:-mx-5", ">User</DataTableHeaderCell>", ">Email</DataTableHeaderCell>", ">Role</DataTableHeaderCell>", "Manage Access", "Add workspace access", "roleDrafts", "Update Role", "updateMemberRole", "h-11 w-11 shrink-0", "sm:h-11 sm:w-11", "createUserIfMissing: false", "method: 'PATCH'", "method: 'DELETE'", "Revoke access to ${workspace.name}?", "tone=\"neutral\"", "bg-ui-surface-strong", "Workspace access will be removed immediately", "The user keeps their AcornOps account and access to other workspaces.", "ownerCount === 1"], "excludes": ["function RoleDialog", "setDialog('role')", "Workspace Access Will Be Removed Immediately", "-mx-4 border-y border-ui-border sm:-mx-5"] },
+        { "file": "scripts/verify-directory-hardening-browser.mjs", "contains": ["workspace grant requires deliberate recipient and role", "Alex Chen (alex2@example.test)"] },
         { "file": "src/lib.ts", "contains": ["roleRank", "sortMembers"] },
         { "file": "src/api.ts", "contains": ["error.code === 'LAST_OWNER'", "Workspace must keep at least one owner"] }
       ]
@@ -323,11 +339,20 @@
       ]
     },
     {
+      "id": "REQ-AUD-002",
+      "summary": "Human audit filtering uses an exact immutable OIDC admin actor subject, without a name/email lookup or privacy projection expansion.",
+      "evidence": [
+        { "file": "src/pages/AuditPage.tsx", "contains": ["adminActorSubject", "Admin actor subject", "Exact OIDC subject identifier, not a name or email search", "audit-actor-help"] },
+        { "file": "test/react-ui.test.ts", "contains": ["audit custom ranges use the displayed local zone", "adminActorEmail"] }
+      ]
+    },
+    {
       "id": "REQ-AUD-001",
       "summary": "Admin Audit pairs a natural-language event sentence with raw action and outcome subtext, uses readable actor and object labels, filters by workspace name or ID, and receives only authentication and mutation audit records while retaining historical evidence.",
       "evidence": [
         { "file": "src/pages/AuditPage.tsx", "contains": ["Admin Audit", "privileged admin actions", "auditEventText", "Granted ${role} access", "Revoked ${subject}'s access", "auditActorName", "subjectDisplayName", "humanizeAuditAction", "event.action || 'unknown'", "titleCase(event.outcome || 'unknown')", "Workspace name or ID", "workspaceQuery", "Correlation ID", "limit', '50", "Load more", "rawAuditKeyValues", "audit-log-copy"], "excludes": ["`Platform admin ", "{humanizeAuditAction(event.action)} ·", "Viewed Workspace Details", "admin.admin_audit.search", "metadata.ticketRef", "BFF workload token"] },
         { "file": "src/styles.css", "contains": ["@media (min-width: 90rem)", ".audit-page-header .type-body { white-space: nowrap; }"] },
+        { "file": "src/pages/AuditPage.tsx", "contains": ["From and To are inclusive", "resolvedOptions().timeZone", "Changes not applied", "auditRangeError"] },
         { "file": "docs/contracts/manifest.json", "contains": ["adminAuditWritePolicy", "Read-only admin requests use ordinary structured HTTP access logs and do not create admin audit records", "excluded from Admin Audit query results"] },
         { "file": "lib/admin-contract.mjs", "contains": ["endsWith(\".read\")", "endsWith(\".search\")"], "excludes": ["admin.admin_audit."] }
       ]
