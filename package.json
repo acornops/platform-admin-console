@@ -1,6 +1,6 @@
 {
   "name": "@acornops/platform-admin-console",
-  "version": "0.0.1-experimental.6",
+  "version": "0.0.1-experimental.7",
   "private": true,
   "type": "module",
   "workspaces": [

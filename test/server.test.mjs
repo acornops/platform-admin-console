@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAdminConsoleServer } from "../server.mjs";
+import { createMockAdminStore } from "../lib/mock-admin-store.mjs";
 
 async function withServer(options, run) {
   const server = createAdminConsoleServer(options);
@@ -8,6 +9,45 @@ async function withServer(options, run) {
   try { await run(`http://127.0.0.1:${server.address().port}`); }
   finally { await new Promise((resolve) => server.close(resolve)); }
 }
+
+test("AI model additions are opt-in and retain disabled definitions through save, reload and reset", async () => {
+  for (const allowAdditionalModels of [false, true]) {
+    const mockStore = createMockAdminStore({ allowAdditionalModels });
+    const fetchImpl = async (url, init = {}) => {
+      const route = new URL(url).pathname.replace('/admin/v1', '').replace(/^\/system\/(settings|llm-provider-defaults)/, '/$1');
+      const result = mockStore.execute(init.method || 'GET', route, init.body ? JSON.parse(init.body) : {});
+      return Response.json(result.body, { status: result.status });
+    };
+    await withServer({ mode: "control-plane", upstreamBaseUrl: "https://fixture.invalid", upstreamToken: "fixture-only", fetchImpl }, async (base) => {
+      const read = async () => (await fetch(`${base}/admin-console-api/settings`).then(r => r.json())).items.find(s => s.key === "ai_policy");
+      const initial = await read();
+      assert.equal(initial.constraints.allowAdditionalModels, allowAdditionalModels);
+      const mutate = async (method, value, version) => fetch(`${base}/admin-console-api/settings/ai_policy`, {
+        method, headers: { "content-type": "application/json", "x-csrf-token": "mock-admin-csrf" },
+        body: JSON.stringify({ value, expectedVersion: version, reason: "Test additional model lifecycle" })
+      });
+      const additions = { openai: ["future-model"], anthropic: [], gemini: [] };
+      if (!allowAdditionalModels) {
+        assert.equal((await mutate("PATCH", { ...initial.value, additionalProviderModels: additions }, initial.version)).status, 400);
+        assert.equal((await read()).version, initial.version);
+        return;
+      }
+      assert.equal((await mutate("PATCH", { ...initial.value, additionalProviderModels: additions }, initial.version)).status, 200);
+      const saved = await read();
+      assert.deepEqual(saved.value.additionalProviderModels, additions);
+      assert.ok(saved.constraints.providerModels.openai.includes("future-model"));
+      assert.equal(saved.value.providerModels.openai.includes("future-model"), false);
+      const { additionalProviderModels, ...legacy } = saved.value;
+      assert.equal((await mutate("PATCH", legacy, saved.version)).status, 200);
+      const retained = await read();
+      assert.deepEqual(retained.value.additionalProviderModels, additions);
+      assert.equal((await mutate("DELETE", undefined, retained.version)).status, 200);
+      const reset = await read();
+      assert.equal('additionalProviderModels' in reset.value, false);
+      assert.equal(reset.constraints.providerModels.openai.includes("future-model"), false);
+    });
+  }
+});
 
 test("production startup fails closed outside control-plane mode", () => {
   assert.throws(

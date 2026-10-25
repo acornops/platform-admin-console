@@ -188,6 +188,17 @@ The console follows these producer shapes directly:
   available after the BFF privacy projection, and its copy action is an icon-only
   control at the top right.
 
+## AI Policy Model IDs
+
+AI Policy additionally supports deployment-opted-in model IDs (REQ-SET-001).
+The inline form requires an existing deployment-permitted provider and an exact,
+bounded model ID; it stages an enabled model without changing defaults. The
+existing versioned Save persists both the enabled list and retained additional
+definitions. Disabled definitions remain selectable; Reset removes runtime
+definitions. Missing capability metadata hides the form, and read-only/fixed
+policy disables it. This is an additive producer contract, not a new route or
+provider adapter. Compatibility and account access are the admin's responsibility.
+
 ## Contract Deviation Ledger
 
 | ID | Deviation | Reason | Control and status |

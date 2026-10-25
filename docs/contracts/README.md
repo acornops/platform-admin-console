@@ -1,5 +1,12 @@
 # Platform Admin Console Contracts
 
+AI Policy retains optional `additionalProviderModels` metadata independently of
+enabled `providerModels`. The default-off `constraints.allowAdditionalModels`
+capability permits the inline Add model form only for existing permitted
+providers. The BFF bounds additional IDs and projects no provider configuration
+or credentials. Existing versioned setting writes and reset routes are unchanged;
+see the mirrored `aiPolicySetting` manifest contract for bounds and rollout rules.
+
 The additive `workspaceQuery` user-list parameter matches a case-insensitive
 literal substring of a membership workspace name or ID (maximum 200 characters).
 It combines with existing user filters and participates in the cursor signature.

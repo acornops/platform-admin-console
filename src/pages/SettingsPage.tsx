@@ -76,8 +76,36 @@ export function aiPolicyMutationValue(value: any) {
     reasoningSummaryModes: reasoningSummariesEnabled
       ? [...(value?.reasoningSummaryModes || [])]
       : ['off'],
-    reasoningEfforts: [...(value?.reasoningEfforts || [])]
+    reasoningEfforts: [...(value?.reasoningEfforts || [])],
+    ...(value?.additionalProviderModels !== undefined ? {
+      additionalProviderModels: Object.fromEntries(providers.map((provider) => [
+        provider, [...(value.additionalProviderModels?.[provider] || [])]
+      ]))
+    } : {})
   };
+}
+
+export function stageAdditionalModel(value: any, constraints: any, provider: string, modelId: string) {
+  const model = modelId.trim();
+  const existing = value.additionalProviderModels?.[provider] || [];
+  let error = '';
+  if (constraints.allowAdditionalModels !== true || !providers.includes(provider as typeof providers[number])
+      || !constraints.providerModels?.[provider]?.length) {
+    error = 'Choose a deployment-permitted provider.';
+  } else if (model.length > 200 || !/^[A-Za-z0-9][A-Za-z0-9._:/@-]*$/.test(model)) {
+    error = 'Use an exact model ID of up to 200 characters, without spaces.';
+  } else if (constraints.providerModels[provider].includes(model) || existing.includes(model)) {
+    error = 'This model is already listed. Enable it in Available Models.';
+  } else if (existing.length >= 100) {
+    error = 'Each provider can have up to 100 additional model IDs.';
+  }
+  if (error) return { value, error };
+  const additionalProviderModels = Object.fromEntries(providers.map((key) => [
+    key, [...(value.additionalProviderModels?.[key] || []), ...(key === provider ? [model] : [])]
+  ]));
+  return { error: '', value: { ...value, additionalProviderModels,
+    providerModels: { ...value.providerModels, [provider]: [...(value.providerModels?.[provider] || []), model] }
+  } };
 }
 
 export function isAiPolicyMutationValid(value: ReturnType<typeof aiPolicyMutationValue>) {
@@ -286,12 +314,22 @@ function ProviderCard({ provider, status, canMutate, reload, notify }: any) {
   </Card>;
 }
 
-function AiPolicy(props: any) {
+export function AiPolicy(props: any) {
   const setting = props.setting;
   const [value, setValue] = useState<any>(setting?.value || {});
-  useEffect(() => setValue(setting?.value || {}), [setting]);
+  const [newProvider, setNewProvider] = useState('');
+  const [newModel, setNewModel] = useState('');
+  const [additionError, setAdditionError] = useState('');
+  useEffect(() => {
+    setValue(setting?.value || {});
+    setNewProvider(''); setNewModel(''); setAdditionError('');
+  }, [setting]);
   const ceiling = setting?.constraints || {};
-  const models = ceiling.providerModels || {};
+  const editable = props.canMutate && setting?.editable;
+  const models = Object.fromEntries(providers.map((provider) => [provider, [...new Set<string>([
+    ...(ceiling.providerModels?.[provider] || []),
+    ...(ceiling.allowAdditionalModels && ceiling.providerModels?.[provider]?.length ? value.additionalProviderModels?.[provider] || [] : [])
+  ])]]));
   const availableProviders = providers.filter((provider) => (models[provider] || []).length);
   const mutationValue = aiPolicyMutationValue(value);
   const toggleModel = (provider: string, model: string) => setValue((current: any) => {
@@ -310,7 +348,21 @@ function AiPolicy(props: any) {
       <div><FieldLabel htmlFor="default-provider">Default provider</FieldLabel><Select id="default-provider" value={value.defaultProvider || ''} onChange={(provider) => setValue((current: any) => ({ ...current, defaultProvider: provider, defaultModel: current.providerModels?.[provider]?.[0] || models[provider]?.[0] || '' }))} className="mt-2" options={availableProviders.map((provider) => ({ value: provider, label: providerLabels[provider] }))} /></div>
       <div><FieldLabel htmlFor="default-model">Default model</FieldLabel><Select id="default-model" value={value.defaultModel || ''} onChange={(defaultModel) => setValue((current: any) => ({ ...current, defaultModel }))} className="mt-2" options={(value.providerModels?.[value.defaultProvider] || []).map((model: string) => ({ value: model, label: model }))} /></div>
     </div>
-    <fieldset className="mt-6"><legend className="text-sm font-semibold text-ui-text">Available Models</legend><div className="mt-3 grid gap-4 sm:grid-cols-3">{availableProviders.map((provider) => <div key={provider}><strong className="text-xs text-ui-text-muted">{providerLabels[provider]}</strong><div className="mt-2 space-y-2">{models[provider].map((model: string) => <label className="flex items-center gap-2 text-sm text-ui-text" key={model}><Checkbox checked={value.providerModels?.[provider]?.includes(model) || false} onChange={() => toggleModel(provider, model)} />{model}</label>)}</div></div>)}</div></fieldset>
+    <fieldset className="mt-6"><legend className="text-sm font-semibold text-ui-text">Available Models</legend><div className="mt-3 grid gap-4 sm:grid-cols-3">{availableProviders.map((provider) => <div className="min-w-0" key={provider}><strong className="text-xs text-ui-text-muted">{providerLabels[provider]}</strong><div className="mt-2 space-y-2">{models[provider].map((model: string) => <label className="flex items-start gap-2 text-sm text-ui-text" key={model}><Checkbox checked={value.providerModels?.[provider]?.includes(model) || false} onChange={() => toggleModel(provider, model)} /><span className="min-w-0 break-all">{model}</span></label>)}</div></div>)}</div></fieldset>
+    {ceiling.allowAdditionalModels === true && <fieldset className="mt-6" disabled={!editable}>
+      <legend className="text-sm font-semibold text-ui-text">Add Model ID</legend>
+      <HelpText id="additional-model-help">Use an exact model ID supported by the selected provider's existing API. Compatibility and account access are not verified. Add stages the model; Save applies it. Reset removes all runtime additions.</HelpText>
+      <div className="mt-3 grid items-end gap-3 sm:grid-cols-[1fr_2fr_auto]">
+        <div><FieldLabel htmlFor="additional-model-provider">Provider</FieldLabel><Select id="additional-model-provider" disabled={!editable} value={newProvider} onChange={(provider) => { setNewProvider(provider); setAdditionError(''); }} className="mt-2" options={[{ value: '', label: 'Select provider', disabled: true }, ...availableProviders.map((provider) => ({ value: provider, label: providerLabels[provider] }))]} /></div>
+        <div><FieldLabel htmlFor="additional-model-id">Model ID</FieldLabel><TextInput id="additional-model-id" value={newModel} maxLength={200} disabled={!editable} aria-describedby={`additional-model-help${additionError ? ' additional-model-error' : ''}`} aria-invalid={Boolean(additionError)} onChange={(event) => { setNewModel(event.target.value); setAdditionError(''); }} className="mt-2" /></div>
+        <Button disabled={!editable || !newProvider || !newModel.trim()} onClick={() => {
+          const staged = stageAdditionalModel(value, ceiling, newProvider, newModel);
+          setAdditionError(staged.error);
+          if (!staged.error) { setValue(staged.value); setNewModel(''); }
+        }}>Add</Button>
+      </div>
+      {additionError && <p id="additional-model-error" role="alert" className="mt-2 text-xs text-status-danger-text">{additionError}</p>}
+    </fieldset>}
     <fieldset className="mt-6"><legend className="text-sm font-semibold text-ui-text">Reasoning</legend>
       {ceiling.reasoningSummariesEnabled ? <label className="mt-3 flex items-center gap-2 text-sm text-ui-text"><Checkbox checked={Boolean(value.reasoningSummariesEnabled)} onChange={(event) => setValue((current: any) => ({ ...current, reasoningSummariesEnabled: event.target.checked, reasoningSummaryModes: event.target.checked ? current.reasoningSummaryModes : ['off'] }))} />Reasoning summaries</label> : <HelpText>Reasoning summaries are disabled by deployment policy.</HelpText>}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">

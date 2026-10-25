@@ -107,6 +107,27 @@ test("projects only typed platform setting state", () => {
   });
 });
 
+test("projects bounded additional model definitions and fails closed on absent opt-in", () => {
+  const route = matchAdminRoute("GET", "/settings");
+  const definitions = { openai: ["future-model", "future-model", "bad id", "x".repeat(201), { secret: true }], anthropic: [], gemini: [], foreign: ["hidden"] };
+  const setting = {
+    key: "ai_policy", value: { additionalProviderModels: definitions },
+    overrideValue: { additionalProviderModels: definitions },
+    deploymentDefault: {}, constraints: { providerModels: { openai: ["gpt-5.5", "future-model"] }, credentials: "hidden" }
+  };
+  const projected = projectAdminResponse(route, { items: [setting] }).items[0];
+  assert.deepEqual(projected.value.additionalProviderModels, { openai: ["future-model"], anthropic: [], gemini: [] });
+  assert.deepEqual(projected.overrideValue.additionalProviderModels, projected.value.additionalProviderModels);
+  assert.equal('additionalProviderModels' in projected.deploymentDefault, false);
+  assert.equal(projected.constraints.allowAdditionalModels, false);
+  assert.equal('credentials' in projected.constraints, false);
+  setting.constraints.allowAdditionalModels = true;
+  setting.value.additionalProviderModels.openai = Array.from({ length: 101 }, (_, i) => `model-${i}`);
+  const optedIn = projectAdminResponse(route, { items: [setting] }).items[0];
+  assert.equal(optedIn.constraints.allowAdditionalModels, true);
+  assert.equal(optedIn.value.additionalProviderModels.openai.length, 100);
+});
+
 test("projects safe help links and replaces unsafe producer values with product defaults", () => {
   const route = matchAdminRoute("GET", "/settings");
   const projected = projectAdminResponse(route, { items: [{

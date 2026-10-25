@@ -21,6 +21,8 @@ import { buildOverviewModel } from '../src/pages/OverviewPage';
 import { WorkspacePolicyDialog } from '../src/components/WorkspacePolicy';
 import {
   aiPolicyMutationValue,
+  AiPolicy,
+  stageAdditionalModel,
   isAiPolicyMutationValid,
   isHelpLinksMutationValid,
   settingValuesMatch
@@ -220,6 +222,7 @@ test('AI policy mutations preserve the legacy validation and summary normalizati
   });
   assert.deepEqual(normalized.reasoningSummaryModes, ['off']);
   assert.equal(isAiPolicyMutationValid(normalized), true);
+  assert.equal('additionalProviderModels' in normalized, false);
 
   const invalid = aiPolicyMutationValue({
     defaultProvider: 'anthropic',
@@ -231,6 +234,47 @@ test('AI policy mutations preserve the legacy validation and summary normalizati
   });
   assert.equal(invalid.defaultModel, '');
   assert.equal(isAiPolicyMutationValid(invalid), false);
+});
+
+test('AI policy mutations retain disabled model definitions without foreign provider fields', () => {
+  const value = aiPolicyMutationValue({
+    defaultProvider: 'openai', defaultModel: 'gpt-5.5',
+    providerModels: { openai: ['gpt-5.5'], anthropic: [], gemini: [] },
+    additionalProviderModels: { openai: ['future-model'], anthropic: [], gemini: [], custom: ['hidden'] },
+    reasoningSummaryModes: ['off'], reasoningEfforts: ['low']
+  });
+  assert.deepEqual(value.additionalProviderModels, { openai: ['future-model'], anthropic: [], gemini: [] });
+  assert.deepEqual(value.providerModels.openai, ['gpt-5.5']);
+});
+
+test('additional models stage an enabled ID without changing defaults or accepting unsupported inputs', () => {
+  const value = { defaultProvider: 'openai', defaultModel: 'gpt-5.5', providerModels: { openai: ['gpt-5.5'], anthropic: [], gemini: [] } };
+  const constraints = { allowAdditionalModels: true, providerModels: value.providerModels };
+  const staged = stageAdditionalModel(value, constraints, 'openai', '  Future-Model:1  ');
+  assert.equal(staged.error, '');
+  assert.equal(staged.value.defaultModel, value.defaultModel);
+  assert.equal(staged.value.defaultProvider, value.defaultProvider);
+  assert.deepEqual(staged.value.providerModels.openai, ['gpt-5.5', 'Future-Model:1']);
+  assert.deepEqual(staged.value.additionalProviderModels, { openai: ['Future-Model:1'], anthropic: [], gemini: [] });
+  assert.deepEqual(value.providerModels.openai, ['gpt-5.5']);
+  for (const [provider, id] of [['', 'next'], ['foreign', 'next'], ['anthropic', 'next'], ['openai', ''], ['openai', 'bad id'], ['openai', 'x'.repeat(201)], ['openai', 'gpt-5.5']]) {
+    assert.notEqual(stageAdditionalModel(value, constraints, provider, id).error, '', `${provider}: ${id}`);
+  }
+  assert.notEqual(stageAdditionalModel(staged.value, constraints, 'openai', 'Future-Model:1').error, '');
+  assert.equal(stageAdditionalModel(staged.value, constraints, 'openai', 'future-model:1').error, '');
+  assert.notEqual(stageAdditionalModel(value, { ...constraints, allowAdditionalModels: false }, 'openai', 'next').error, '');
+  assert.notEqual(stageAdditionalModel({ ...value, additionalProviderModels: { openai: Array.from({ length: 100 }, (_, i) => `model-${i}`) } }, constraints, 'openai', 'next').error, '');
+});
+
+test('additional model controls require an explicit capability and remain disabled for fixed or read-only policy', () => {
+  const setting = { key: 'ai_policy', editable: true, value: { providerModels: { openai: ['gpt-5.5'] } }, constraints: { providerModels: { openai: ['gpt-5.5'] } } };
+  const render = (candidate = setting, canMutate = true) => renderToStaticMarkup(createElement(AiPolicy, { setting: candidate, canMutate }));
+  assert.doesNotMatch(render(), /Add Model ID/);
+  const optedIn = { ...setting, constraints: { ...setting.constraints, allowAdditionalModels: true } };
+  assert.match(render(optedIn), /Add Model ID/);
+  assert.match(render(optedIn), /Select provider/);
+  assert.match(render(optedIn, false), /fieldset[^>]*disabled/);
+  assert.match(render({ ...optedIn, editable: false }), /fieldset[^>]*disabled/);
 });
 
 test('Kubernetes RBAC profiles preserve deployment sources and validate focused YAML', () => {
