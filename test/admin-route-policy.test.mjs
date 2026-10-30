@@ -182,6 +182,20 @@ test("requires narrow exact-name lifecycle bodies", () => {
 test("matches declared routes and safely encodes identifiers", () => {
   const matched = matchAdminRoute("PATCH", "/workspaces/team%20one/members/user%2Fone/role");
   assert.equal(matched.upstreamPath, "/admin/v1/workspaces/team%20one/members/user%2Fone/role");
+  for (const id of ["literal%25", "caf%C3%A9", "user%2Fone"]) {
+    assert.equal(matchAdminRoute("GET", `/workspaces/${id}`).upstreamPath, `/admin/v1/workspaces/${id}`);
+  }
+});
+
+test("malformed encoded identifiers return no route match", () => {
+  for (const id of ["%", "%ZZ", "%2", "%E0%A4%A", "%C0%AF"]) {
+    for (const [method, path] of [
+      ["GET", `/workspaces/${id}`],
+      ["GET", `/users/${id}`],
+      ["PATCH", `/workspaces/ws-1/members/${id}/role`],
+      ["OPTIONS", `/workspaces/${id}`]
+    ]) assert.equal(matchAdminRoute(method, path), null, `${method} ${path}`);
+  }
 });
 
 test("narrows workspace access grants to existing users", () => {

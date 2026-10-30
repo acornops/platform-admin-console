@@ -543,24 +543,31 @@ function escapeHtml(value) {
     "'": "&#39;"
   })[character]);
 }
+function requestLogRoute(request) {
+  try {
+    const pathname = new URL(request.url || "/", "http://console.local").pathname;
+    const browserPath = pathname.startsWith(API_PREFIX) ? pathname.slice(API_PREFIX.length) || "/" : "";
+    const matched = browserPath ? matchAdminRoute(request.method, browserPath) : null;
+    const authDefinition = ADMIN_AUTH_ROUTE_DEFINITIONS.find((definition) => definition.path === pathname);
+    return pathname === "/health/live" || pathname === "/health/ready"
+      ? pathname
+      : authDefinition
+        ? authDefinition.path
+        : pathname === ADMIN_AUTH_PREFIX || pathname.startsWith(`${ADMIN_AUTH_PREFIX}/`)
+          ? `${ADMIN_AUTH_PREFIX}/denied`
+          : browserPath === "/auth/csrf"
+            ? `${API_PREFIX}/auth/csrf`
+          : matched
+            ? `${API_PREFIX}${matched.browserPattern}`
+            : pathname.startsWith(API_PREFIX)
+              ? `${API_PREFIX}/denied`
+              : "/static";
+  } catch {
+    // Logging runs after response completion, outside the request error boundary.
+    return "/invalid-request";
+  }
+}
 function logRequest({ request, response, requestId, startedAt }) {
-  const pathname = new URL(request.url || "/", "http://console.local").pathname;
-  const browserPath = pathname.startsWith(API_PREFIX) ? pathname.slice(API_PREFIX.length) || "/" : "";
-  const matched = browserPath ? matchAdminRoute(request.method, browserPath) : null;
-  const authDefinition = ADMIN_AUTH_ROUTE_DEFINITIONS.find((definition) => definition.path === pathname);
-  const route = pathname === "/health/live" || pathname === "/health/ready"
-    ? pathname
-    : authDefinition
-      ? authDefinition.path
-      : pathname === ADMIN_AUTH_PREFIX || pathname.startsWith(`${ADMIN_AUTH_PREFIX}/`)
-        ? `${ADMIN_AUTH_PREFIX}/denied`
-        : browserPath === "/auth/csrf"
-          ? `${API_PREFIX}/auth/csrf`
-        : matched
-          ? `${API_PREFIX}${matched.browserPattern}`
-          : pathname.startsWith(API_PREFIX)
-            ? `${API_PREFIX}/denied`
-            : "/static";
   const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
   process.stdout.write(`${JSON.stringify({
     level: response.statusCode >= 500 ? "error" : response.statusCode >= 400 ? "warn" : "info",
@@ -568,7 +575,7 @@ function logRequest({ request, response, requestId, startedAt }) {
     service: "platform-admin-console",
     requestId,
     method: request.method || "GET",
-    route,
+    route: requestLogRoute(request),
     status: response.statusCode,
     durationMs: Number(durationMs.toFixed(2))
   })}\n`);

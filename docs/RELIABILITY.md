@@ -23,6 +23,10 @@ Read-only views surface a retry action. Mutations are not automatically retried.
 
 ## Required Validation
 
+Malformed route identifiers are denied without contacting the control plane.
+Access-log URL classification cannot terminate the process or expose raw paths
+and query values; subsequent liveness requests must continue to succeed.
+
 - `npm run test` for policy, contract, projection, mutation, and HTTP behavior.
 - `npm run contracts:check` for producer/consumer drift.
 - `npm run requirements:check` for current behavior, removed-behavior exclusions, and blocked-capability drift.
