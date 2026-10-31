@@ -23,7 +23,7 @@ The control plane owns `/admin/v1`. Its route implementation, Zod request schema
 
 | Producer | Consumer | Surface | Direction |
 | --- | --- | --- | --- |
-| Control plane | Platform admin console BFF | Twenty-five allowlisted `/admin/v1` methods and paths | BFF to control plane |
+| Control plane | Platform admin console BFF | Twenty-nine allowlisted `/admin/v1` methods and paths | BFF to control plane |
 | Platform admin console BFF | Browser application | Same-origin `/admin-console-api/*` routes with privacy-projected responses | Browser to BFF |
 
 ## Platform Dependency Summary
@@ -101,3 +101,23 @@ The console has one runtime service dependency: `control-plane`. It does not cal
 5. Run `npm run contracts:check`, the control-plane contract check, and the parent cross-repository contract check.
 
 Workspace policy writes carry a unique requestId and observed expectedPolicyVersion. Identical retries reuse the exact payload and ID; a version conflict reloads policy and requires a deliberate new submission. Plan changes preserve overrides and default to rejecting over-limit usage; retain_existing requires explicit confirmation. Lifecycle writes always select source=admin, with exact workspace-name confirmation and deterministic reasons. The BFF projects mutation policy and changed fields so external holds cannot be mistaken for a successful full restoration.
+
+## Bounded admin directory reads
+
+`GET /admin/v1/workspaces/summary` returns exact workspace and environment counts
+plus at most three workspace identity/count rows under `admin:workspace:read`.
+`GET /admin/v1/users/summary` returns total and verified-user counts under
+`admin:user:read`. Empty catalogs return zero counts and an empty leader list;
+unavailable responses must remain errors. Neither endpoint exposes target or
+session records. Counts are computed on demand; this change does not add a cache.
+
+Workspace search matches `q` against names or IDs and accepts
+`lifecycleStatus=active|suspended` before pagination; both filters participate in
+the cursor signature. User detail memberships include `workspaceName`
+and `workspaceLifecycleStatus` for the existing workspace IDs. Workspace, user,
+and membership cursors preserve database timestamp precision while display dates
+retain their existing ISO format. Existing cursor strings remain accepted.
+
+Deploy the control-plane producer before the console consumer; roll back the
+consumer first. Existing list routes and membership mutation payloads are
+unchanged. No schema migration or additional scope is required.

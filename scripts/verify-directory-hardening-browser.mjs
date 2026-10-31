@@ -73,6 +73,7 @@ for (const { width, theme } of [1440, 390].flatMap(width => ['light', 'dark'].ma
     const dialog = page.getByRole('dialog', { name: 'Grant Access To Atlas Research', exact: true });
     const submit = dialog.getByRole('button', { name: 'Grant Access', exact: true });
     assert.equal(await submit.isDisabled(), true);
+    await dialog.getByRole('button', { name: 'User', exact: true }).filter({ hasText: 'Select user' }).waitFor();
     assert.match(await dialog.getByRole('button', { name: 'User', exact: true }).innerText(), /Select user/);
     assert.match(await dialog.getByRole('button', { name: 'Workspace Role', exact: true }).innerText(), /Select role/);
     await dialog.locator('form').evaluate(form => form.requestSubmit());

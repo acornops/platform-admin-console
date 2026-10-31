@@ -12,3 +12,5 @@ Reviewed 2026-10-19. Implementation-only plans that have landed are in
   invocation is claimed.
 
 - [Admin console reliability](2026-11-01-admin-console-reliability.md) — Implementation verified; awaiting integration.
+
+- [Admin console scaling](2026-11-01-admin-console-scaling.md) — Coordinated bounded directory reads; integration pending.

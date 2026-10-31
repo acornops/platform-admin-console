@@ -22,6 +22,7 @@ import {
 import { adminApi, loadAllPages, readableError } from '../api';
 import type { PageProps } from '../app-types';
 import { formatDate, sortMembers, titleCase, workspaceCreatorName } from '../lib';
+import { DirectorySelect, type DirectoryItem } from '../components/DirectorySelect';
 import { ActionDialog } from '../components/ActionDialog';
 
 import { WorkspacePolicyDialog, WorkspacePolicySummary } from '../components/WorkspacePolicy';
@@ -35,7 +36,9 @@ export function WorkspacesPage(props: PageProps) {
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'all' | 'active' | 'suspended'>('all');
-  const [totalWorkspaceCount, setTotalWorkspaceCount] = useState(0);
+  const [totalWorkspaceCount, setTotalWorkspaceCount] = useState<number | null>(null);
+  const [summaryError, setSummaryError] = useState('');
+  const [summaryVersion, setSummaryVersion] = useState(0);
   const nextCursorRef = useRef('');
   const requestSequence = useRef(0);
   const pendingRef = useRef(false);
@@ -48,22 +51,15 @@ export function WorkspacesPage(props: PageProps) {
     setLoading(true);
     setError('');
     try {
-      if (status !== 'all') {
-        const all = await loadAllPages<any>(`/workspaces${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ''}`);
-        if (requestId !== requestSequence.current) return;
-        setItems(all.filter((workspace) => workspace.lifecycleStatus === status));
-        nextCursorRef.current = '';
-        setNextCursor('');
-      } else {
-        const params = new URLSearchParams({ limit: String(pageLimit) });
-        if (query.trim()) params.set('q', query.trim());
-        if (append) params.set('cursor', nextCursorRef.current);
-        const page = await adminApi<{ items: any[]; nextCursor?: string }>(`/workspaces?${params}`);
-        if (requestId !== requestSequence.current) return;
-        setItems((current) => append ? [...current, ...page.items.filter((item) => !current.some((known) => known.id === item.id))] : page.items);
-        nextCursorRef.current = page.nextCursor || '';
-        setNextCursor(page.nextCursor || '');
-      }
+      const params = new URLSearchParams({ limit: String(pageLimit) });
+      if (query.trim()) params.set('q', query.trim());
+      if (status !== 'all') params.set('lifecycleStatus', status);
+      if (append) params.set('cursor', nextCursorRef.current);
+      const page = await adminApi<{ items: any[]; nextCursor?: string }>(`/workspaces?${params}`);
+      if (requestId !== requestSequence.current) return;
+      setItems((current) => append ? [...current, ...page.items.filter((item) => !current.some((known) => known.id === item.id))] : page.items);
+      nextCursorRef.current = page.nextCursor || '';
+      setNextCursor(page.nextCursor || '');
     } catch (reason) {
       if (requestId === requestSequence.current) { setError(readableError(reason)); setRetryAppend(append); }
     } finally {
@@ -80,12 +76,13 @@ export function WorkspacesPage(props: PageProps) {
     return () => { window.clearTimeout(timer); ++requestSequence.current; };
   }, [load]);
   useEffect(() => {
-    let active = true;
-    void loadAllPages<any>('/workspaces')
-      .then((workspaces) => { if (active) setTotalWorkspaceCount(workspaces.length); })
-      .catch(() => undefined);
-    return () => { active = false; };
-  }, []);
+    const controller = new AbortController();
+    setSummaryError('');
+    void adminApi<{ workspaceCount: number }>('/workspaces/summary', { signal: controller.signal })
+      .then(summary => { if (!controller.signal.aborted) setTotalWorkspaceCount(summary.workspaceCount); })
+      .catch(reason => { if (!controller.signal.aborted) setSummaryError(readableError(reason)); });
+    return () => controller.abort();
+  }, [summaryVersion]);
 
   const selectedId = props.resourceId;
   const closePanel = () => props.navigate('/workspaces', { replace: true });
@@ -94,6 +91,7 @@ export function WorkspacesPage(props: PageProps) {
   return (
     <>
       <PageHeader title="Workspaces" description="Review workspace governance, plans, access, and creation details." />
+      {summaryError && <InlineAlert tone="danger">Workspace total unavailable. {summaryError}<Button onClick={() => setSummaryVersion(value => value + 1)}>Retry total</Button></InlineAlert>}
       <DataSurface
         toolbarFullWidth
         toolbar={
@@ -109,7 +107,7 @@ export function WorkspacesPage(props: PageProps) {
               { value: 'suspended', label: 'Suspended' }
             ]} />
             <StatusBadge className="h-11 justify-center whitespace-nowrap px-4 tabular-nums">
-              Showing {items.length} of {Math.max(totalWorkspaceCount, items.length)}
+              Showing {items.length} of {totalWorkspaceCount === null ? '—' : Math.max(totalWorkspaceCount, items.length)}
             </StatusBadge>
           </div>
         }
@@ -172,7 +170,6 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
   const [planCatalog, setPlanCatalog] = useState<any>(null);
   const [config, setConfig] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [accessError, setAccessError] = useState('');
   const [dialog, setDialog] = useState<'plan' | 'lifecycle' | 'grant' | 'revoke' | null>(null);
@@ -191,11 +188,10 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
     const options = { signal: controller.signal };
     setError('');
     try {
-      const [detail, systemConfig, memberItems, allUsers, currentPolicy, catalog] = await Promise.all([
+      const [detail, systemConfig, memberItems, currentPolicy, catalog] = await Promise.all([
         adminApi(`/workspaces/${encodeURIComponent(workspaceId)}`, options),
         adminApi('/system/config', options),
         loadAllPages(`/workspaces/${encodeURIComponent(workspaceId)}/members`, 100, options),
-        loadAllPages('/users', 100, options),
         adminApi(`/workspaces/${encodeURIComponent(workspaceId)}/policy`, options),
         adminApi('/workspace-plans', options)
       ]);
@@ -207,7 +203,6 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
       const sortedMembers = sortMembers(memberItems);
       setMembers(sortedMembers);
       setRoleDrafts(Object.fromEntries(sortedMembers.map((member: any) => [member.userId, member.role])));
-      setUsers(allUsers);
     } catch (reason) {
       if (controller.signal.aborted) return;
       setError(readableError(reason));
@@ -369,7 +364,7 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
         )}
       </div>
       {(dialog === 'plan' || dialog === 'lifecycle') && policy && <WorkspacePolicyDialog workspace={workspace} policy={policy} plans={plans} action={dialog === 'plan' ? 'plan' : hasAdminHold ? 'restore' : 'suspend'} onClose={() => setDialog(null)} onDone={(result: any) => { setDialog(null); void reload(); onChanged(); notify(dialog === 'plan' ? 'Plan successfully updated.' : result.policy?.lifecycleStatus === 'suspended' ? 'Workspace remains suspended. Active holds are shown in the policy summary.' : 'Workspace access restored.'); }} />}
-      {dialog === 'grant' && <GrantDialog workspace={workspace} members={members} users={users} roles={config.roleTemplateKeys || []} onClose={() => setDialog(null)} onDone={() => { setDialog(null); void reload(); onChanged(); notify('Workspace access successfully granted.'); }} />}
+      {dialog === 'grant' && <GrantDialog workspace={workspace} members={members} roles={config.roleTemplateKeys || []} onClose={() => setDialog(null)} onDone={() => { setDialog(null); void reload(); onChanged(); notify('Workspace access successfully granted.'); }} />}
       {dialog === 'revoke' && selectedMember && <RevokeDialog workspace={workspace} member={selectedMember} onClose={() => setDialog(null)} onDone={() => { setDialog(null); void reload(); onChanged(); notify('Workspace access successfully revoked.'); }} />}
     </RightSidePanel>
   );
@@ -379,20 +374,20 @@ function DetailItem({ term, children }: { term: string; children: ReactNode }) {
   return <div className="min-w-0"><dt className="type-label">{term}</dt><dd className="mt-1.5 break-words text-sm text-ui-text">{children}</dd></div>;
 }
 
-function GrantDialog({ workspace, members, users, roles, onClose, onDone }: any) {
-  const available = users.filter((user: any) => !members.some((member: any) => member.userId === user.id)).sort((a: any, b: any) => String(a.displayName || a.email).localeCompare(String(b.displayName || b.email)));
-  const [userId, setUserId] = useState('');
+function GrantDialog({ workspace, members, roles, onClose, onDone }: any) {
+  const [selectedUser, setSelectedUser] = useState<DirectoryItem | null>(null);
+  const userId = selectedUser?.id || '';
   const [role, setRole] = useState('');
-  const userIsAvailable = available.some((user: any) => user.id === userId);
+  const userIsAvailable = Boolean(userId) && !members.some((member: any) => member.userId === userId);
   const roleIsAvailable = roles.includes(role);
   useEffect(() => {
-    if (userId && !userIsAvailable) setUserId('');
+    if (userId && !userIsAvailable) setSelectedUser(null);
     if (role && !roleIsAvailable) setRole('');
   }, [userId, userIsAvailable, role, roleIsAvailable]);
   return <MutationDialog title={`Grant Access To ${workspace.name}`} description="Select an existing user and workspace role." submitLabel="Grant Access" onClose={onClose} onDone={onDone} request={() => adminApi(`/workspaces/${encodeURIComponent(workspace.id)}/members`, { method: 'POST', body: { userId, role, createUserIfMissing: false, reason: `Platform admin granted ${titleCase(role)} access to ${workspace.name}` } })} submitDisabled={!userIsAvailable || !roleIsAvailable}>
-    <div><FieldLabel htmlFor="grant-user">User</FieldLabel><Select id="grant-user" ariaLabel="User" value={userId} onChange={setUserId} placeholder="Select user" options={available.map((user: any) => ({ value: user.id, label: user.displayName ? `${user.displayName} (${user.email})` : user.email }))} /></div>
+    <DirectorySelect kind="users" id="grant-user" selected={selectedUser} onSelect={setSelectedUser} excludedIds={members.map((member: any) => member.userId)} />
     <div><FieldLabel htmlFor="grant-workspace-role">Workspace Role</FieldLabel><Select id="grant-workspace-role" ariaLabel="Workspace Role" value={role} onChange={setRole} placeholder="Select role" options={roles.map((value: string) => ({ value, label: titleCase(value) }))} /></div>
-    <HelpText>{!available.length ? 'No eligible users are available.' : !roles.length ? 'No workspace roles are available.' : 'Choose a user and role to grant access to this workspace.'}</HelpText>
+    <HelpText>{!roles.length ? 'No workspace roles are available.' : 'Choose a user and role to grant access to this workspace.'}</HelpText>
   </MutationDialog>;
 }
 

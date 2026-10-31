@@ -21,3 +21,5 @@
 - [Contracts](contracts/README.md)
 
 - [Admin console reliability plan](exec-plans/active/2026-11-01-admin-console-reliability.md)
+
+- [Admin console scaling plan](exec-plans/active/2026-11-01-admin-console-scaling.md) — Coordinated bounded directory reads; integration pending.

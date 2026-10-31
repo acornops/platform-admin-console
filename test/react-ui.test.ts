@@ -194,11 +194,11 @@ test('shared controls retain management-console keyboard and focus wrapping beha
 
 test('overview model remains governance-safe and contract-backed', () => {
   const model = buildOverviewModel({
-    workspaces: [
-      { id: 'b', name: 'Beta', clusterCount: 2, virtualMachineCount: 1, lifecycleStatus: 'active' },
-      { id: 'a', name: 'Alpha', clusterCount: 1, virtualMachineCount: 0, lifecycleStatus: 'suspended' }
-    ],
-    users: [{ emailVerified: true }, { emailVerified: false }]
+    workspaceCount: 2, userCount: 2, verifiedUserCount: 1, suspendedWorkspaceCount: 1, kubernetesCount: 3, virtualMachineCount: 1,
+    environmentLeaders: [
+      { id: 'b', name: 'Beta', clusterCount: 2, virtualMachineCount: 1 },
+      { id: 'a', name: 'Alpha', clusterCount: 1, virtualMachineCount: 0 }
+    ]
   });
   assert.equal(model.environmentCount, 4);
   assert.equal(model.environmentLeaders[0].name, 'Beta');
@@ -616,10 +616,9 @@ test('workspace directory matches the full-width search and result-count referen
   assert.match(pageComposition, /toolbarFullWidth/);
   assert.match(workspaces, /toolbarFullWidth/);
   assert.match(workspaces, /sm:grid-cols-\[minmax\(0,1fr\)_11rem_auto\]/);
-  assert.match(workspaces, /<StatusBadge className="h-11 justify-center whitespace-nowrap px-4 tabular-nums">[\s\S]*Showing \{items\.length\} of \{Math\.max\(totalWorkspaceCount, items\.length\)\}/);
+  assert.match(workspaces, /<StatusBadge className="h-11 justify-center whitespace-nowrap px-4 tabular-nums">[\s\S]*Showing \{items\.length\} of \{totalWorkspaceCount === null \? \'—\' : Math\.max\(totalWorkspaceCount, items\.length\)\}/);
   assert.doesNotMatch(workspaces, /<span className="inline-flex h-11 items-center justify-center rounded-full/);
-  assert.match(workspaces, /Showing \{items\.length\} of \{Math\.max\(totalWorkspaceCount, items\.length\)\}/);
-  assert.match(workspaces, /loadAllPages<any>\('\/workspaces'\)/);
+  assert.match(workspaces, /Showing \{items\.length\} of \{totalWorkspaceCount === null \? \'—\' : Math\.max\(totalWorkspaceCount, items\.length\)\}/);
   assert.match(workspaces, /h-2 w-2 rounded-full bg-status-success/);
   assert.doesNotMatch(workspaces, /Showing \{items\.length\}\{nextCursor/);
 });

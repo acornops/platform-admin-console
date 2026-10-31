@@ -20,9 +20,10 @@ import {
   StatusBadge,
   TextInput
 } from '@acornops/ui';
-import { adminApi, loadAllPages, readableError } from '../api';
+import { adminApi, readableError } from '../api';
 import type { PageProps } from '../app-types';
 import { formatDate, formatMembershipLifecycle, titleCase } from '../lib';
+import { DirectorySelect, type DirectoryItem } from '../components/DirectorySelect';
 import { ActionDialog } from '../components/ActionDialog';
 
 const userPageLimit = 25;
@@ -78,12 +79,17 @@ export function UsersPage(props: PageProps) {
   }, [search, verification, workspaceFilter]);
 
   useEffect(() => {
-    let active = true;
-    void loadAllPages<any>('/workspaces')
-      .then((items) => { if (active) setWorkspaces(items); })
-      .catch((reason) => { if (active) setWorkspaceError(readableError(reason)); });
-    return () => { active = false; };
-  }, []);
+    const controller = new AbortController();
+    setWorkspaces([]); setWorkspaceError('');
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams({ limit: '8' });
+      if (workspaceFilter.trim()) params.set('q', workspaceFilter.trim());
+      void adminApi<{ items: any[] }>(`/workspaces?${params}`, { signal: controller.signal })
+        .then(page => { if (!controller.signal.aborted) setWorkspaces(page.items); })
+        .catch(reason => { if (!controller.signal.aborted) setWorkspaceError(readableError(reason)); });
+    }, 240);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [workspaceFilter]);
 
   useEffect(() => {
     nextCursorRef.current = '';
@@ -172,14 +178,13 @@ export function UsersPage(props: PageProps) {
           </>
         ) : !error && <EmptyState embedded icon={<Users />} title="No Users Found" description="No users match the current search or filters." />}
       </DataSurface>
-      {props.resourceId && <UserPanel key={props.resourceId} {...props} userId={props.resourceId} workspaces={workspaces} onClose={() => props.navigate('/users', { replace: true })} onChanged={() => void load()} />}
+      {props.resourceId && <UserPanel key={props.resourceId} {...props} userId={props.resourceId} onClose={() => props.navigate('/users', { replace: true })} onChanged={() => void load()} />}
     </>
   );
 }
 
-function UserPanel({ userId, workspaces, onClose, onChanged, navigate, notify, canMutate }: PageProps & {
+function UserPanel({ userId, onClose, onChanged, navigate, notify, canMutate }: PageProps & {
   userId: string;
-  workspaces: any[];
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -214,10 +219,9 @@ function UserPanel({ userId, workspaces, onClose, onChanged, navigate, notify, c
     return () => { active.current = false; pendingRead.current?.abort(); };
   }, [reload]);
 
-  const memberships = useMemo(() => {
-    const byId = new Map(workspaces.map((workspace) => [workspace.id, workspace]));
-    return [...(detail?.memberships || [])].map((membership) => ({ ...membership, workspace: byId.get(membership.workspaceId) || { id: membership.workspaceId, name: membership.workspaceId } })).sort((left, right) => left.workspace.name.localeCompare(right.workspace.name));
-  }, [detail, workspaces]);
+  const memberships = useMemo(() => [...(detail?.memberships || [])].map(membership => ({
+    ...membership, workspace: { id: membership.workspaceId, name: membership.workspaceName || membership.workspaceId, lifecycleStatus: membership.workspaceLifecycleStatus }
+  })).sort((left, right) => left.workspace.name.localeCompare(right.workspace.name)), [detail]);
   const user = detail?.user;
   const updateMembershipRole = async (membership: any, nextRole: string) => {
     setAccessError('');
@@ -268,7 +272,7 @@ function UserPanel({ userId, workspaces, onClose, onChanged, navigate, notify, c
               )}
               description="Workspaces and roles currently assigned to this user."
               className="!mt-0 px-4 py-3 sm:px-5"
-              actions={canMutate && <Button size="sm" onClick={() => setDialog('grant')} disabled={memberships.length >= workspaces.length}><UserRoundPlus className="h-4 w-4" /> Grant Access</Button>}
+              actions={canMutate && <Button size="sm" onClick={() => setDialog('grant')}><UserRoundPlus className="h-4 w-4" /> Grant Access</Button>}
             >
               {accessError && <InlineAlert tone="danger" className="mb-3">{accessError}</InlineAlert>}
               {memberships.length ? (
@@ -342,7 +346,7 @@ function UserPanel({ userId, workspaces, onClose, onChanged, navigate, notify, c
           </>
         )}
       </div>
-      {dialog === 'grant' && user && <GrantUserDialog user={user} memberships={memberships} workspaces={workspaces} roles={config.roleTemplateKeys || []} onClose={() => setDialog(null)} onDone={() => { setDialog(null); void reload(); void onChanged(); notify('Workspace access successfully granted.'); }} />}
+      {dialog === 'grant' && user && <GrantUserDialog user={user} memberships={memberships} roles={config.roleTemplateKeys || []} onClose={() => setDialog(null)} onDone={() => { setDialog(null); void reload(); void onChanged(); notify('Workspace access successfully granted.'); }} />}
       {dialog === 'revoke' && selected && <UserRevokeDialog user={user} membership={selected} onClose={() => setDialog(null)} onDone={() => { setDialog(null); void reload(); void onChanged(); notify(`Access to ${selected.workspace.name} successfully revoked.`); }} />}
     </RightSidePanel>
   );
@@ -352,21 +356,21 @@ function DetailItem({ term, children }: { term: string; children: ReactNode }) {
   return <div className="min-w-0"><dt className="type-label">{term}</dt><dd className="mt-1.5 break-words text-sm text-ui-text">{children}</dd></div>;
 }
 
-function GrantUserDialog({ user, memberships, workspaces, roles, onClose, onDone }: any) {
-  const available = workspaces.filter((workspace: any) => !memberships.some((membership: any) => membership.workspaceId === workspace.id)).sort((left: any, right: any) => left.name.localeCompare(right.name));
-  const [workspaceId, setWorkspaceId] = useState('');
+function GrantUserDialog({ user, memberships, roles, onClose, onDone }: any) {
+  const [workspace, setWorkspace] = useState<DirectoryItem | null>(null);
+  const workspaceId = workspace?.id || '';
+  const workspaceIsAvailable = Boolean(workspaceId) && !memberships.some((membership: any) => membership.workspaceId === workspaceId);
   const [role, setRole] = useState('');
-  const workspace = available.find((item: any) => item.id === workspaceId);
   const roleIsAvailable = roles.includes(role);
   useEffect(() => {
-    if (workspaceId && !workspace) setWorkspaceId('');
+    if (workspaceId && !workspaceIsAvailable) setWorkspace(null);
     if (role && !roleIsAvailable) setRole('');
-  }, [workspaceId, workspace, role, roleIsAvailable]);
-  return <MembershipMutationDialog title={`Grant Workspace Access To ${user.displayName || user.email}`} description="Select a workspace and role. This changes workspace access only." submitLabel="Grant Access" submitDisabled={!workspace || !roleIsAvailable} request={() => adminApi(`/workspaces/${encodeURIComponent(workspaceId)}/members`, { method: 'POST', body: { userId: user.id, role, createUserIfMissing: false, reason: `Platform admin granted ${titleCase(role)} access to ${workspace?.name || workspaceId}` } })} onClose={onClose} onDone={onDone}>
+  }, [workspaceId, workspaceIsAvailable, role, roleIsAvailable]);
+  return <MembershipMutationDialog title={`Grant Workspace Access To ${user.displayName || user.email}`} description="Select a workspace and role. This changes workspace access only." submitLabel="Grant Access" submitDisabled={!workspaceIsAvailable || !roleIsAvailable} request={() => adminApi(`/workspaces/${encodeURIComponent(workspaceId)}/members`, { method: 'POST', body: { userId: user.id, role, createUserIfMissing: false, reason: `Platform admin granted ${titleCase(role)} access to ${workspace?.name || workspaceId}` } })} onClose={onClose} onDone={onDone}>
     <HelpText>{user.displayName ? `${user.displayName} (${user.email})` : user.email}</HelpText>
-    <div><FieldLabel htmlFor="grant-workspace">Workspace</FieldLabel><Select id="grant-workspace" ariaLabel="Workspace" value={workspaceId} onChange={setWorkspaceId} placeholder="Select workspace" options={available.map((item: any) => ({ value: item.id, label: item.name }))} /></div>
+    <DirectorySelect kind="workspaces" id="grant-workspace" selected={workspace} onSelect={setWorkspace} excludedIds={memberships.map((membership: any) => membership.workspaceId)} />
     <div><FieldLabel htmlFor="grant-user-role">Workspace Role</FieldLabel><Select id="grant-user-role" ariaLabel="Workspace Role" value={role} onChange={setRole} placeholder="Select role" options={roles.map((value: string) => ({ value, label: titleCase(value) }))} /></div>
-    <HelpText>{!available.length ? 'No eligible workspaces are available.' : !roles.length ? 'No workspace roles are available.' : 'Choose a workspace and role to grant access.'}</HelpText>
+    <HelpText>{!roles.length ? 'No workspace roles are available.' : 'Choose a workspace and role to grant access.'}</HelpText>
   </MembershipMutationDialog>;
 }
 

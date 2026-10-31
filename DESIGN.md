@@ -224,3 +224,16 @@ Any new deviation must be added to this table in the same change as the implemen
 ## Accepted hosted policy integration — 2026-09-06
 
 Replaces the read-only exclusion in REQ-WSP-002 / EXC-015 and DEV-014: the workspace panel shows explicit quotaOverrides, effective resource limits and independent Chat, Agent, Workflow, Auto Triage and Insights execution usage. Override editing and quota mutation routes remain excluded and API-only. Preserves REQ-WSP-004, EXC-016 and EXC-017 exact-name confirmation and deterministic reasons. Admin actions change only the admin hold; an external hold can keep access suspended after restore. Suspension cancels accepted queued work and requests controlled cancellation of running work while retaining resources and memberships. Plan changes preserve overrides, use observed policy versions and unique request IDs, and require deliberate retain_existing confirmation on capacity conflict. Read-only policy and plan routes use existing human governance scopes through the same-origin BFF.
+
+
+## Bounded directory loading
+
+Overview and the workspace total badge use the producer's exact summary responses.
+Workspace lifecycle filtering runs before cursor pagination. User membership rows
+carry workspace display context, so opening either detail panel does not require a
+platform directory download. Grant dialogs search 25 candidates at a time and offer
+explicit Load more; workspace filter suggestions request eight matches. A search
+change clears the selected grant recipient, and existing memberships remain
+excluded. Roles and mutation confirmations retain their current behavior. These
+are additive producer contracts with matching privacy projection, not deviations
+from the governance boundary. Summary failures remain visible with retry.
