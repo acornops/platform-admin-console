@@ -3,7 +3,7 @@
   "lastReviewed": "2026-10-19",
   "authority": "docs/product-specs/current-requirements.md",
   "expectedRuntime": {
-    "adminRouteCount": 27,
+    "adminRouteCount": 29,
     "allowedScopeCount": 8
   },
   "normativeSources": [
@@ -181,7 +181,7 @@
       "id": "REQ-USR-009",
       "summary": "The user panel grants an existing user access only after deliberate eligible-workspace and contract-provided-role choices, without creating an account; name and email identify the fixed recipient.",
       "evidence": [
-        { "file": "src/pages/UsersPage.tsx", "contains": ["Grant Workspace Access To", "config.roleTemplateKeys", "createUserIfMissing: false", "method: 'POST'", "placeholder=\"Select workspace\"", "placeholder=\"Select role\"", "submitDisabled={!workspace || !roleIsAvailable}"] },
+        { "file": "src/pages/UsersPage.tsx", "contains": ["Grant Workspace Access To", "config.roleTemplateKeys", "createUserIfMissing: false", "method: 'POST'", "<DirectorySelect kind=\"workspaces\"", "placeholder=\"Select role\"", "submitDisabled={!workspaceIsAvailable || !roleIsAvailable}"] },
         { "file": "scripts/verify-directory-hardening-browser.mjs", "contains": ["user grant requires deliberate workspace and role", "assert.deepEqual(grants, [])"] }
       ]
     },
@@ -198,7 +198,7 @@
       "id": "REQ-WSP-001",
       "summary": "The Workspaces directory mirrors the accepted Users inventory pattern, including the shared result-count badge treatment, with complete lifecycle-status filtering and no plan filter.",
       "evidence": [
-        { "file": "src/pages/WorkspacesPage.tsx", "contains": ["toolbarFullWidth", "sm:grid-cols-[minmax(0,1fr)_11rem_auto]", "Search workspace name", "Filter workspaces by status", "All statuses", "lifecycleStatus === status", "StatusBadge className=\"h-11 justify-center whitespace-nowrap px-4 tabular-nums\"", "Showing {items.length} of {Math.max(totalWorkspaceCount, items.length)}", "loadAllPages<any>('/workspaces')", "h-2 w-2 rounded-full bg-status-success", "Load more"], "excludes": ["<span className=\"inline-flex h-11 items-center justify-center rounded-full", "Filter by plan", "Showing {items.length}{nextCursor"] }
+        { "file": "src/pages/WorkspacesPage.tsx", "contains": ["toolbarFullWidth", "sm:grid-cols-[minmax(0,1fr)_11rem_auto]", "Search workspace name", "Filter workspaces by status", "All statuses", "params.set('lifecycleStatus', status)", "StatusBadge className=\"h-11 justify-center whitespace-nowrap px-4 tabular-nums\"", "Showing {items.length} of {totalWorkspaceCount === null ? '—' : Math.max(totalWorkspaceCount, items.length)}", "'/workspaces/summary'", "h-2 w-2 rounded-full bg-status-success", "Load more"], "excludes": ["<span className=\"inline-flex h-11 items-center justify-center rounded-full", "Filter by plan", "Showing {items.length}{nextCursor"] }
       ]
     },
     {

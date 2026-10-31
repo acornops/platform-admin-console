@@ -1,44 +1,36 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, LockKeyhole, PanelsTopLeft, Server, Users } from 'lucide-react';
 import { Button, InlineAlert, LoadingState, PageHeader } from '@acornops/ui';
-import { loadAllPages, readableError } from '../api';
+import { adminApi, readableError } from '../api';
 import type { PageProps } from '../app-types';
 
-export function buildOverviewModel({ workspaces, users }: { workspaces: any[]; users: any[] }) {
-  const number = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
+interface OverviewData {
+  workspaceCount: number; userCount: number; verifiedUserCount: number;
+  kubernetesCount: number; virtualMachineCount: number; suspendedWorkspaceCount: number;
+  environmentLeaders: Array<{ id: string; name: string; clusterCount: number; virtualMachineCount: number }>;
+}
+
+export function buildOverviewModel(summary: OverviewData) {
   const percent = (value: number, total: number) => total ? Math.round((value / total) * 100) : 0;
-  const kubernetesCount = workspaces.reduce((sum, item) => sum + number(item.clusterCount), 0);
-  const virtualMachineCount = workspaces.reduce((sum, item) => sum + number(item.virtualMachineCount), 0);
-  const environmentCount = kubernetesCount + virtualMachineCount;
-  const environmentLeaders = workspaces.map((item) => ({
-    id: item.id,
-    name: item.name,
-    clusterCount: number(item.clusterCount),
-    virtualMachineCount: number(item.virtualMachineCount),
-    environmentCount: number(item.clusterCount) + number(item.virtualMachineCount)
-  })).sort((left, right) => right.environmentCount - left.environmentCount || left.name.localeCompare(right.name)).slice(0, 3);
-  const verifiedUserCount = users.filter((user) => user.emailVerified).length;
+  const environmentCount = summary.kubernetesCount + summary.virtualMachineCount;
+  const environmentLeaders = summary.environmentLeaders.map(item => ({ ...item, environmentCount: item.clusterCount + item.virtualMachineCount }));
   return {
-    workspaceCount: workspaces.length,
-    userCount: users.length,
-    kubernetesCount,
-    virtualMachineCount,
-    environmentCount,
-    environmentLeaders,
+    ...summary, environmentCount, environmentLeaders,
     topEnvironmentShare: percent(environmentLeaders[0]?.environmentCount || 0, environmentCount),
-    suspendedWorkspaceCount: workspaces.filter((workspace) => workspace.lifecycleStatus === 'suspended').length,
-    verifiedPercent: percent(verifiedUserCount, users.length),
-    unverifiedUserCount: users.length - verifiedUserCount
+    verifiedPercent: percent(summary.verifiedUserCount, summary.userCount),
+    unverifiedUserCount: summary.userCount - summary.verifiedUserCount
   };
 }
 
 export function OverviewPage({ navigate }: PageProps) {
-  const [data, setData] = useState<{ workspaces: any[]; users: any[] } | null>(null);
+  const [data, setData] = useState<OverviewData | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
-    Promise.all([loadAllPages('/workspaces'), loadAllPages('/users')])
-      .then(([workspaces, users]) => setData({ workspaces, users }))
-      .catch((reason) => setError(readableError(reason)));
+    const controller = new AbortController();
+    Promise.all([adminApi('/workspaces/summary', { signal: controller.signal }), adminApi('/users/summary', { signal: controller.signal })])
+      .then(([workspaces, users]) => { if (!controller.signal.aborted) setData({ ...workspaces, ...users }); })
+      .catch((reason) => { if (!controller.signal.aborted) setError(readableError(reason)); });
+    return () => controller.abort();
   }, []);
 
   if (!data && !error) return <><PageHeader title="Platform Insights" description="A governance-safe view of platform adoption, access, and portfolio health." /><section className="overflow-hidden rounded-lg border border-ui-border bg-ui-surface"><LoadingState label="Loading platform insights" /></section></>;

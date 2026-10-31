@@ -55,3 +55,10 @@ Behavior, boundary, and workflow changes require documentation in the same chang
 For any product change, use `.agents/skills/local/platform-admin-change/SKILL.md` and start from `docs/product-specs/current-requirements.md`. Classify the request as preserving, replacing, adding, or unblocking a requirement. If an accepted decision changes, update the human baseline, `requirements-baseline.json`, executable evidence, tests, and the design or contract record together. Completed execution plans are history and must not be used as current requirement evidence.
 
 Hosted policy browser verification: after `npm run build`, run `node scripts/verify-hosted-policy-browser.mjs` with Playwright installed or set `PLAYWRIGHT_MODULE_PATH` to an installed Playwright entry point. It binds an ephemeral local mock BFF, checks five pools, downgrade confirmation and versioned exact-name admin-hold actions, and captures desktop/mobile screenshots in `test-results/`.
+
+For bounded-directory regression coverage, build the UI and run
+`PLAYWRIGHT_MODULE_PATH=/path/to/playwright/index.mjs node --test scripts/verify-directory-scaling-browser.mjs`
+alongside the existing directory and detail reliability browser checks. The
+producer's `admin-scaling-database.test.ts` exercises populated PostgreSQL catalogs,
+exact totals, scoped reads, and cursor precision. Coordinate both contract mirrors
+and deploy the producer first.

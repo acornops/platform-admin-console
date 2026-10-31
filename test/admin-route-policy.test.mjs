@@ -4,7 +4,7 @@ import { ADMIN_ROUTE_DEFINITIONS, isGovernanceOnlyUpstreamPath, matchAdminRoute,
 import { ALLOWED_ADMIN_SCOPES, FORBIDDEN_ADMIN_SCOPES, projectAdminResponse, validateAdminIdentity } from "../lib/admin-contract.mjs";
 
 test("all runtime routes use the admin namespace and governance-only nouns", () => {
-  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 27);
+  assert.equal(ADMIN_ROUTE_DEFINITIONS.length, 29);
   for (const route of ADMIN_ROUTE_DEFINITIONS) {
     assert.equal(isGovernanceOnlyUpstreamPath(route.upstreamTemplate), true, route.upstreamTemplate);
     assert.ok(ALLOWED_ADMIN_SCOPES.includes(route.requiredScope), route.requiredScope);
