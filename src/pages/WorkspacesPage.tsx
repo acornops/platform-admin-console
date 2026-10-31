@@ -157,7 +157,7 @@ export function WorkspacesPage(props: PageProps) {
           !error && <EmptyState embedded icon={<Users />} title="No Workspaces Found" description="No workspaces match this search or filter." />
         )}
       </DataSurface>
-      {selectedId && <WorkspacePanel {...props} workspaceId={selectedId} onClose={closePanel} onChanged={refresh} />}
+      {selectedId && <WorkspacePanel key={selectedId} {...props} workspaceId={selectedId} onClose={closePanel} onChanged={refresh} />}
     </>
   );
 }
@@ -180,18 +180,26 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
   const [managing, setManaging] = useState(false);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [rolePendingUserId, setRolePendingUserId] = useState('');
+  const pendingRead = useRef<AbortController | null>(null);
+  const active = useRef(true);
 
   const reload = useCallback(async () => {
+    if (!active.current) return;
+    pendingRead.current?.abort();
+    const controller = new AbortController();
+    pendingRead.current = controller;
+    const options = { signal: controller.signal };
     setError('');
     try {
       const [detail, systemConfig, memberItems, allUsers, currentPolicy, catalog] = await Promise.all([
-        adminApi(`/workspaces/${encodeURIComponent(workspaceId)}`),
-        adminApi('/system/config'),
-        loadAllPages(`/workspaces/${encodeURIComponent(workspaceId)}/members`),
-        loadAllPages('/users'),
-        adminApi(`/workspaces/${encodeURIComponent(workspaceId)}/policy`),
-        adminApi('/workspace-plans')
+        adminApi(`/workspaces/${encodeURIComponent(workspaceId)}`, options),
+        adminApi('/system/config', options),
+        loadAllPages(`/workspaces/${encodeURIComponent(workspaceId)}/members`, 100, options),
+        loadAllPages('/users', 100, options),
+        adminApi(`/workspaces/${encodeURIComponent(workspaceId)}/policy`, options),
+        adminApi('/workspace-plans', options)
       ]);
+      if (controller.signal.aborted) return;
       setWorkspace(detail);
       setPolicy(currentPolicy);
       setPlanCatalog(catalog);
@@ -201,11 +209,16 @@ function WorkspacePanel({ workspaceId, onClose, onChanged, canMutate, navigate, 
       setRoleDrafts(Object.fromEntries(sortedMembers.map((member: any) => [member.userId, member.role])));
       setUsers(allUsers);
     } catch (reason) {
+      if (controller.signal.aborted) return;
       setError(readableError(reason));
     }
   }, [workspaceId]);
 
-  useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => {
+    active.current = true;
+    void reload();
+    return () => { active.current = false; pendingRead.current?.abort(); };
+  }, [reload]);
   const titleId = 'workspace-panel-title';
   const plans = planCatalog?.plans || [];
   const plan = { quotas: policy?.effectiveLimits?.quotas };

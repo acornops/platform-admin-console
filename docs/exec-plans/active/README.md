@@ -10,3 +10,5 @@ Reviewed 2026-10-19. Implementation-only plans that have landed are in
   `main` is authorized; automated component stages passed and Phase 08 release verification
   is blocked on required live acceptance. No successful final MC full-wrapper
   invocation is claimed.
+
+- [Admin console reliability](2026-11-01-admin-console-reliability.md) — Implementation verified; awaiting integration.
