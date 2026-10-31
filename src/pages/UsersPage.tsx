@@ -172,7 +172,7 @@ export function UsersPage(props: PageProps) {
           </>
         ) : !error && <EmptyState embedded icon={<Users />} title="No Users Found" description="No users match the current search or filters." />}
       </DataSurface>
-      {props.resourceId && <UserPanel {...props} userId={props.resourceId} workspaces={workspaces} onClose={() => props.navigate('/users', { replace: true })} onChanged={() => void load()} />}
+      {props.resourceId && <UserPanel key={props.resourceId} {...props} userId={props.resourceId} workspaces={workspaces} onClose={() => props.navigate('/users', { replace: true })} onChanged={() => void load()} />}
     </>
   );
 }
@@ -191,16 +191,28 @@ function UserPanel({ userId, workspaces, onClose, onChanged, navigate, notify, c
   const [selected, setSelected] = useState<any>(null);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [rolePendingWorkspaceId, setRolePendingWorkspaceId] = useState('');
+  const pendingRead = useRef<AbortController | null>(null);
+  const active = useRef(true);
   const reload = useCallback(async () => {
+    if (!active.current) return;
+    pendingRead.current?.abort();
+    const controller = new AbortController();
+    pendingRead.current = controller;
+    const options = { signal: controller.signal };
     setError('');
     try {
-      const [userDetail, systemConfig] = await Promise.all([adminApi(`/users/${encodeURIComponent(userId)}`), adminApi('/system/config')]);
+      const [userDetail, systemConfig] = await Promise.all([adminApi(`/users/${encodeURIComponent(userId)}`, options), adminApi('/system/config', options)]);
+      if (controller.signal.aborted) return;
       setDetail(userDetail);
       setConfig(systemConfig);
       setRoleDrafts(Object.fromEntries((userDetail.memberships || []).map((membership: any) => [membership.workspaceId, membership.role])));
-    } catch (reason) { setError(readableError(reason)); }
+    } catch (reason) { if (!controller.signal.aborted) setError(readableError(reason)); }
   }, [userId]);
-  useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => {
+    active.current = true;
+    void reload();
+    return () => { active.current = false; pendingRead.current?.abort(); };
+  }, [reload]);
 
   const memberships = useMemo(() => {
     const byId = new Map(workspaces.map((workspace) => [workspace.id, workspace]));

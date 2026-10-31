@@ -37,12 +37,13 @@ async function refreshCsrfToken() {
 
 export async function adminApi<T = any>(
   path: string,
-  options: { method?: string; body?: unknown } = {}
+  options: { method?: string; body?: unknown; signal?: AbortSignal } = {}
 ): Promise<T> {
   const method = options.method || 'GET';
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !csrfToken) await refreshCsrfToken();
   const response = await fetch(`/admin-console-api${path}`, {
     method,
+    signal: options.signal,
     credentials: 'same-origin',
     headers: {
       ...(options.body === undefined ? {} : { 'content-type': 'application/json' }),
@@ -77,11 +78,16 @@ export async function adminApi<T = any>(
 
 export async function logoutAdmin() {
   if (!csrfToken) await refreshCsrfToken();
-  await fetch('/admin-auth/logout', {
+  const response = await fetch('/admin-auth/logout', {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'x-csrf-token': csrfToken }
   });
+  if (!response.ok) {
+    if (response.status === 403) csrfToken = '';
+    throw new AdminApiError('Logout could not be confirmed. Please try again.', 'LOGOUT_FAILED', response.status);
+  }
+  csrfToken = '';
   location.assign('/');
 }
 
@@ -92,16 +98,21 @@ export function readableError(error: unknown) {
   return error instanceof Error ? error.message : 'The governance service did not return a usable response.';
 }
 
-export async function loadAllPages<T>(path: string, limit = 100): Promise<T[]> {
+export async function loadAllPages<T>(path: string, limit = 100, options: { signal?: AbortSignal } = {}): Promise<T[]> {
   const items: T[] = [];
+  const seenCursors = new Set<string>();
   let cursor = '';
   do {
     const separator = path.includes('?') ? '&' : '?';
     const page = await adminApi<{ items: T[]; nextCursor?: string }>(
-      `${path}${separator}limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
+      `${path}${separator}limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, options
     );
     items.push(...(page.items || []));
     cursor = page.nextCursor || '';
+    if (cursor && seenCursors.has(cursor)) {
+      throw new AdminApiError('The service repeated a page cursor. Please try again.', 'PAGINATION_INVALID');
+    }
+    if (cursor) seenCursors.add(cursor);
   } while (cursor);
   return items;
 }

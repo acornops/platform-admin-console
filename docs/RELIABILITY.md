@@ -15,6 +15,11 @@
 
 Read-only views surface a retry action. Mutations are not automatically retried. The browser shows a stable error message and keeps the operator's current context. Production monitoring should derive availability, upstream latency, allowlist-denial, and mutation-outcome signals from the structured logs until dedicated console metrics are added.
 
+Logout redirects only after a successful response; failures leave an actionable
+error and allow retry. User and workspace detail state is keyed to the selected
+resource, with obsolete reads canceled on navigation or replacement. Cursor
+traversal rejects repeated cursors instead of looping or reporting partial success.
+
 - Missing or broad admin scopes fail closed before the requested route is called.
 - Unknown routes and query parameters return a stable denial.
 - Non-JSON, unavailable, or timed-out upstream responses are normalized without token or upstream-body leakage.

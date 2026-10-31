@@ -19,3 +19,5 @@
 - [Current requirements](product-specs/current-requirements.md)
 - [References](references/index.md)
 - [Contracts](contracts/README.md)
+
+- [Admin console reliability plan](exec-plans/active/2026-11-01-admin-console-reliability.md)
